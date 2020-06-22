@@ -1,2 +1,0 @@
-# gestsup
-gestionnaire de ticket

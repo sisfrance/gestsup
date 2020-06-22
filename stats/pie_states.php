@@ -1,29 +1,26 @@
 <?php
 ################################################################################
 # @Name : pie_states.php
-# @Description : Display Statistics chart 3
+# @Desc : Display Statistics chart 3
 # @call : /stat.php
 # @parameters : 
 # @Author : Flox
 # @Create : 15/02/2014
-# @Update : 09/10/2019
-# @Version : 3.1.45
+# @Update : 25/11/2014
+# @Version : 3.0.11
 ################################################################################
 
 $values = array();
 $xnom = array();
-$query = $db->query("SELECT count(*) FROM tincidents WHERE disable='0'");
-$rtotal=$query->fetch();
-
-$libchart=T_('Tickets par états');
-$unit=T_('tickets');
+$qtotal = mysql_query("SELECT count(*) FROM tincidents WHERE disable='0'");
+$rtotal=mysql_fetch_array($qtotal);
+$libchart="Tickets par états";
+$unit='tickets';
 $query1 = "
-SELECT tstates.name as state, COUNT(*) as nb
+SELECT tstates.name as sta, COUNT(*) as nb
 FROM tincidents INNER JOIN tstates ON (tincidents.state=tstates.id)
 WHERE tincidents.disable LIKE '0' AND
 tincidents.technician LIKE '$_POST[tech]' AND
-tincidents.u_service LIKE '$_POST[service]' $where_service $where_agency AND
-$where_state AND
 tincidents.type LIKE '$_POST[type]' AND
 criticality like '$_POST[criticality]' AND
 tincidents.category LIKE '$_POST[category]' AND
@@ -33,11 +30,11 @@ GROUP BY tstates.number
 ORDER BY nb
 DESC
 ";
-$query=$db->query($query1);
-while ($row = $query->fetch()) 
+$query=mysql_query($query1);
+while ($row=mysql_fetch_array($query)) 
 {
 	array_push($values, $row[1]);
-	array_push($xnom, T_($row['state']));
+	array_push($xnom, $row['sta']);
 } 
 $container='container3';
 include('./stat_pie.php');

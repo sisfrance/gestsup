@@ -1,26 +1,23 @@
 <?php
 ################################################################################
 # @Name : gestsup_api.php 
-# @Description : Display short ticket declaration interface to integer in other website (ex: intranet)
-# @Author : Flox
+# @Desc : Display short ticket declaration interface to integer in other website (ex: intranet)
+# @Autor : Flox
 # @Create : 29/10/2013
-# @Update : 05/03/2019
-# @Version : 3.1.39 p1
+# @Update : 29/10/2013
+# @Version : 1.3 beta
 ################################################################################
 
-
 ############################## START EDITABLE PART #############################
-$host='localhost'; //SQL server name
-$db_name=''; //database name
-$charset='utf8'; //database charset default utf8
-$user='root'; //database user name
-$password=''; //database password
+$server="localhost"; //gestsup server name
+$user="root";	//gestsup database username
+$password=""; //gestsup database password
+$db="gestsup"; //gestsup database name 
 ############################## END EDITABLE PART #############################
 
 //database connection
-try {$db = new PDO	("mysql:host=$host;dbname=$db_name;charset=$charset", "$user", "$password" , array(PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION));}
-catch (Exception $e)
-{die('Error : ' . $e->getMessage());}
+$connect = mysql_connect($server,$user,$password) or die("impossible de se connecter : ". mysql_error());
+$db = mysql_select_db($db, $connect)  or die("impossible de sélectionner la base : ". mysql_error());
  
 //initialize variables
 if(!isset($_POST['send'])) $_POST['send']= '';
@@ -29,44 +26,26 @@ if ($_POST['send']) //database input
 {
 	$date=date('Y-m-d H:m:s');
 	
-	//escape special char
-	$_POST['description'] = strip_tags($_POST['description']);
-	$_POST['title'] = strip_tags($_POST['title']);
+	//escape special char in sql query 
+	$_POST['description'] = mysql_real_escape_string($_POST['description']);
+	$_POST['title'] = mysql_real_escape_string($_POST['title']);
 	
-	$qry=$db->prepare("
-	INSERT INTO `tincidents` 
-	(`user`,`title`,`description`,`state`,`date_create`,`creator`,`criticality`,`techread`) 
-	VALUES 
-	(:user,:title,:description,:state,:date_create,:creator,:criticality,:techread)");
-	$qry->execute(array(
-		'user' => $_POST['user'],
-		'title' => $_POST['title'],
-		'description' => $_POST['description'],
-		'state' => 5,
-		'date_create' => $date,
-		'creator' => $_POST['user'],
-		'criticality' => 4,
-		'techread' => 0
-		));
+	$query= "INSERT INTO tincidents (user,title,description,state,date_create,creator,criticality,techread) VALUES ('$_POST[user]','$_POST[title]','$_POST[description]','5','$date','$_POST[user]','4','0')";
+	$exec = mysql_query($query);
 	
 	//load parameters table
-	$qry=$db->prepare("SELECT * FROM `tparameters`");
-	$qry->execute();
-	$rparameters=$qry->fetch();
-	$qry->closeCursor();
+	$qparameters = mysql_query("SELECT * FROM `tparameters`"); 
+	$rparameters= mysql_fetch_array($qparameters);
 	
 	//find incident number  
-	$qry=$db->prepare("SELECT MAX(id) FROM tincidents");
-	$qry->execute();
-	$row=$qry->fetch();
-	$qry->closeCursor();
+	$query = mysql_query("SELECT MAX(id) FROM tincidents");
+	$row=mysql_fetch_array($query);
 	$number =$row[0];
-	
 	echo '
 	<font color="green">
 		La demande <b>#'.$number.'</b> à bien été prise en compte.<br />
 	</font>
-	Pour suivre vos demandes vous pouvez vous rendre sur la page <a target="_blank" href="'.$rparameters['server_url'].'">'.$rparameters['server_url'].'</a>
+	Pour suivre vos demandes vous pouvez vous rendre sur la page <a target="about_blank" href="'.$rparameters['server_url'].'">'.$rparameters['server_url'].'</a>
 	';
 }
 else //display form
@@ -79,13 +58,11 @@ else //display form
 				<td>
 					<select name="user" />
 						';
-						$qry=$db->prepare("SELECT `id`,`lastname`,`firstname` FROM `tusers` WHERE disable='0' ORDER BY lastname");
-						$qry->execute();
-						while($row=$qry->fetch()) 
+						$q = mysql_query("SELECT * FROM `tusers` WHERE disable='0' ORDER BY lastname"); 
+						while ($row=mysql_fetch_array($q))
 						{
 							echo '<option value="'.$row['id'].'">'.$row['lastname'].' '.$row['firstname'].'</option>';
 						}
-						$qry->closeCursor();
 						echo '
 					</select>
 				</td>
@@ -113,7 +90,5 @@ else //display form
 		</table>
 	</form>';
 }
-
 //close database access
-$db = null;
-?>
+mysql_close($connect);?>

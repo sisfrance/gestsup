@@ -1,218 +1,115 @@
 <?php
 ################################################################################
-# @Name : line_ticket.php
-# @Description : Display a line graph with open AND close tickets 
-# @call : /ticket_stat.php
+# @Name : line_num_tickets.php
+# @Desc : Display Statistics
+# @call : /stat.php
 # @parameters : 
 # @Author : Flox
 # @Create : 15/02/2014
-# @Update : 09/10/2019
-# @Version : 3.1.45
+# @Update : 24/09/2014
+# @Version : 3.0.10
 ################################################################################
 
 $user_id=$_SESSION['user_id'];
 
 //count create period
-$query=$db->query("SELECT COUNT(*) FROM `tincidents` WHERE technician LIKE '$_POST[tech]' AND criticality LIKE '$_POST[criticality]' AND type LIKE '$_POST[type]' AND category LIKE '$_POST[category]' AND u_service LIKE '$_POST[service]' $where_service $where_agency AND $where_state AND date_create NOT LIKE '0000-00-00 00:00:00' AND date_create LIKE '$_POST[year]-$_POST[month]-%' AND disable='0'");
-$row=$query->fetch();
-$count=$row[0];
-$query->closeCursor(); 
+$req= mysql_query( "SELECT count(*) FROM `tincidents` WHERE technician LIKE '$_POST[tech]' and criticality like '$_POST[criticality]' and type LIKE '$_POST[type]' and category LIKE '$_POST[category]' and date_create not like '0000-00-00 00:00:00'  and date_create like '$_POST[year]-$_POST[month]-%' AND disable='0'");
+$res = mysql_fetch_array($req);
+$count=$res[0];
 
-//count close period
-$query=$db->query("SELECT COUNT(*) FROM `tincidents` WHERE technician LIKE '$_POST[tech]' AND criticality LIKE '$_POST[criticality]' AND type LIKE '$_POST[type]' AND category LIKE '$_POST[category]'  AND u_service LIKE '$_POST[service]' $where_service $where_agency AND $where_state AND date_res NOT LIKE '0000-00-00 00:00:00' AND date_res LIKE '$_POST[year]-$_POST[month]-%' AND state='3' AND disable='0'");
-$row=$query->fetch();
-$count2=$row[0];
-$query->closeCursor(); 
+//count create period
+$req= mysql_query( "SELECT count(*) FROM `tincidents` WHERE technician LIKE '$_POST[tech]' and criticality like '$_POST[criticality]' and type LIKE '$_POST[type]' and category LIKE '$_POST[category]' and date_res not like '0000-00-00 00:00:00' and date_res like '$_POST[year]-$_POST[month]-%' AND disable='0'");
+$res = mysql_fetch_array($req);
+$count2=$res[0];
 
-//count current advance
-$query=$db->query("
-SELECT COUNT(DISTINCT tincidents.id)  FROM `tincidents`,`tthreads`
-		WHERE
-		tincidents.id=tthreads.ticket AND
-		tincidents.technician LIKE '$_POST[tech]' AND
-		tincidents.technician=tthreads.author AND
-		tincidents.u_service LIKE '$_POST[service]' 
-		$where_service $where_agency AND 
-		$where_state AND
-		tincidents.criticality LIKE '$_POST[criticality]' AND
-		tincidents.type LIKE '$_POST[type]' AND
-		tincidents.category LIKE '$_POST[category]' AND
-		tthreads.date LIKE '$_POST[year]-$_POST[month]-%' AND
-		tthreads.type='0' AND
-		tincidents.state!=3 AND
-		tincidents.disable='0' 
-");
-$row=$query->fetch();
-$count3=$row[0];
-$query->closeCursor(); 
+//count current open
+$req3= "SELECT count(*) FROM `tincidents` WHERE technician LIKE '$_POST[tech]' and criticality like '$_POST[criticality]' and type LIKE '$_POST[type]' and category LIKE '$_POST[category]' AND disable='0' AND state!=3 AND state!=4";
+$req3= mysql_query($req3);
+$res3 = mysql_fetch_array($req3);
+$count3=$res3[0];
 
 //count total 
-$query=$db->query("SELECT COUNT(*) FROM `tincidents` WHERE technician LIKE '$_POST[tech]' AND criticality LIKE '$_POST[criticality]' AND type LIKE '$_POST[type]' AND category LIKE '$_POST[category]' AND u_service LIKE '$_POST[service]' $where_service $where_agency AND $where_state AND disable='0'");
-$row=$query->fetch();
-$count4=$row[0];
-$query->closeCursor();
+$req4= "SELECT count(*) FROM `tincidents` WHERE technician LIKE '$_POST[tech]' and criticality like '$_POST[criticality]' and type LIKE '$_POST[type]' and category LIKE '$_POST[category]' AND disable='0'";
+$req4= mysql_query($req4);
+$res4 = mysql_fetch_array($req4);
+$count4=$res4[0];
 
 //query for year selection
 if (($_POST['month'] == '%') && ($_POST['year']!=='%'))
 {
     $values1 = array();
     $values2 = array();
-    $values3 = array();
     $xnom1 = array();
     $xnom2 = array();
-    $xnom3 = array();
-	$libchart=T_('Évolution des tickets ouverts et fermés sur').' '.$_POST['year'];
-	$query2=$db->query("SELECT month(date_create) AS x,COUNT(*) AS y FROM `tincidents` WHERE technician LIKE '$_POST[tech]' AND u_service LIKE '$_POST[service]' $where_service $where_agency AND $where_state AND criticality LIKE '$_POST[criticality]' AND type LIKE '$_POST[type]' AND category LIKE '$_POST[category]' AND date_create NOT LIKE '0000-00-00 00:00:00' AND date_create LIKE '$_POST[year]-$_POST[month]-%' AND disable='0' GROUP BY x ");
-	$query3=$db->query("SELECT month(date_res) AS x,COUNT(*) AS y FROM `tincidents` WHERE technician LIKE '$_POST[tech]' AND u_service LIKE '$_POST[service]' $where_service $where_agency AND $where_state AND criticality LIKE '$_POST[criticality]' AND type LIKE '$_POST[type]' AND category LIKE '$_POST[category]' AND date_res NOT LIKE '0000-00-00 00:00:00' AND date_res LIKE '$_POST[year]-$_POST[month]-%' AND state='3' AND disable='0' GROUP BY x ");
-	$query1=$db->query("
-		SELECT month(tthreads.date) AS x,COUNT(DISTINCT tincidents.id) AS y FROM `tincidents`,`tthreads`
-		WHERE
-		tincidents.id=tthreads.ticket AND
-		tincidents.technician LIKE '$_POST[tech]' AND
-		tincidents.technician=tthreads.author AND
-		tincidents.u_service LIKE '$_POST[service]' 
-		$where_service $where_agency AND 
-		$where_state AND
-		tincidents.criticality LIKE '$_POST[criticality]' AND
-		tincidents.type LIKE '$_POST[type]' AND
-		tincidents.category LIKE '$_POST[category]' AND
-		tthreads.date LIKE '$_POST[year]-$_POST[month]-%' AND
-		tthreads.type='0' AND
-		tincidents.state!=3 AND
-		tincidents.disable='0' GROUP BY x 
-	");
+	$libchart="Evolution des tickets ouverts et fermés pour l\'année $_POST[year]";
+	$sql1= "SELECT month(date_create) as x,count(*) as y FROM `tincidents` WHERE technician LIKE '$_POST[tech]' and criticality like '$_POST[criticality]' and type LIKE '$_POST[type]' and category LIKE '$_POST[category]' and date_create not like '0000-00-00 00:00:00' and date_create like '$_POST[year]-$_POST[month]-%' AND disable='0' group by x ";
+	$sql2= "SELECT month(date_res) as x,count(*) as y FROM `tincidents` WHERE technician LIKE '$_POST[tech]' and criticality like '$_POST[criticality]' and type LIKE '$_POST[type]' and category LIKE '$_POST[category]' and date_res not like '0000-00-00 00:00:00' and date_res like '$_POST[year]-$_POST[month]-%' AND disable='0' group by x ";
+	$result1 = mysql_query($sql1) or die('Erreur SQL !<br />'.$sql1.'<br />'.mysql_error());
+	$result2 = mysql_query($sql2) or die('Erreur SQL !<br />'.$sql2.'<br />'.mysql_error());
 	// push data in table
-	while($data = $query1->fetch())
+	while($data = mysql_fetch_array($result1))
 	{
 		array_push($values1 ,$data['y']);
 		array_push($xnom1 ,$data['x']);
 	}
-	$query1->closeCursor(); 
-	while($data = $query2->fetch())
+	while($data = mysql_fetch_array($result2))
 	{
 		array_push($values2 ,$data['y']);
 		array_push($xnom2 ,$data['x']);
 	}
-	$query2->closeCursor(); 
-	while($data = $query3->fetch())
-	{
-		array_push($values3 ,$data['y']);
-		array_push($xnom3 ,$data['x']);
-	}
-	$query3->closeCursor(); 
 }
 //query for month selection
 else if ($_POST['month']!='%')
 {
     $values1 = array();
     $values2 = array();
-    $values3 = array();
     $xnom1 = array();
     $xnom2 = array();
-    $xnom3 = array();
 	$monthm=$_POST['month'];
-	if($_POST['year']=='%') {$postyear=T_('de toutes les années');} else {$postyear=$_POST['year'];}
-	$libchart=T_('Évolution des tickets ouverts et fermés pour le mois de').' '.$mois[$monthm].' '.$postyear;
-	$query_1="SELECT day(date_create) AS x,COUNT(*) AS y FROM `tincidents` WHERE technician LIKE '$_POST[tech]' AND u_service LIKE '$_POST[service]' $where_service $where_agency AND $where_state AND criticality LIKE '$_POST[criticality]' AND type LIKE '$_POST[type]' AND category LIKE '$_POST[category]' AND date_create NOT LIKE '0000-00-00 00:00:00'  AND date_create LIKE '$_POST[year]-$_POST[month]-%' AND disable='0' GROUP BY x ";
-	if($rparameters['debug']==1) {echo $query_1;}
-	$query2=$db->query($query_1);
-	$query3=$db->query("SELECT day(date_res) AS x,COUNT(*) AS y FROM `tincidents` WHERE technician LIKE '$_POST[tech]' AND u_service LIKE '$_POST[service]' $where_service $where_agency AND $where_state AND criticality LIKE '$_POST[criticality]' AND type LIKE '$_POST[type]' AND category LIKE '$_POST[category]' AND date_res NOT LIKE '0000-00-00 00:00:00' AND date_res LIKE '$_POST[year]-$_POST[month]-%' AND state='3' AND disable='0' GROUP BY x ");
-	$query1=$db->query("
-		SELECT day(tthreads.date) AS x,COUNT(DISTINCT tincidents.id) AS y FROM `tincidents`,`tthreads`
-		WHERE
-		tincidents.id=tthreads.ticket AND
-		tincidents.technician LIKE '$_POST[tech]' AND
-		tincidents.technician=tthreads.author AND
-		tincidents.u_service LIKE '$_POST[service]' 
-		$where_service $where_agency AND 
-		$where_state AND
-		tincidents.criticality LIKE '$_POST[criticality]' AND
-		tincidents.type LIKE '$_POST[type]' AND
-		tincidents.category LIKE '$_POST[category]' AND
-		tthreads.date LIKE '$_POST[year]-$_POST[month]-%' AND
-		tthreads.type='0' AND
-		tincidents.state!=3 AND
-		tincidents.disable='0' GROUP BY x 
-	");
-	//push data in table
-	while($data = $query1->fetch())
-	{
+	$libchart="Évolution des tickets ouverts et fermés pour le mois de $mois[$monthm] $_POST[year]";
+	$sql1= "SELECT day(date_create) as x,count(*) as y FROM `tincidents` WHERE technician LIKE '$_POST[tech]' and criticality like '$_POST[criticality]' and type LIKE '$_POST[type]' and category LIKE '$_POST[category]' and date_create not like '0000-00-00 00:00:00'  and date_create like '$_POST[year]-$_POST[month]-%' AND disable='0' group by x ";
+	$sql2= "SELECT day(date_res) as x,count(*) as y FROM `tincidents` WHERE technician LIKE '$_POST[tech]' and criticality like '$_POST[criticality]' and type LIKE '$_POST[type]' and category LIKE '$_POST[category]' and date_res not like '0000-00-00 00:00:00' and date_res like '$_POST[year]-$_POST[month]-%' AND disable='0' group by x ";
+	$result1 = mysql_query($sql1) or die('Erreur SQL !<br />'.$sql1.'<br />'.mysql_error());
+	$result2 = mysql_query($sql2) or die('Erreur SQL !<br />'.$sql2.'<br />'.mysql_error());
+	// push data in table
+	while($data = mysql_fetch_array($result1)){
     	array_push($values1 ,$data['y']);
     	array_push($xnom1 ,$jour[$data['x']]);
 	}
-	$query1->closeCursor(); 
-	while($data = $query2->fetch())
-	{
+	while($data = mysql_fetch_array($result2)){
     	array_push($values2 ,$data['y']);
     	array_push($xnom2 ,$jour[$data['x']]);
 	}
-	$query2->closeCursor(); 
-	while($data = $query3->fetch())
-	{
-    	array_push($values3 ,$data['y']);
-    	array_push($xnom3 ,$jour[$data['x']]);
-	}
-	$query3->closeCursor(); 
 }
 //query for all years selection
 else if ($_POST['year']=='%')
 {
     $values1 = array();
     $values2 = array();
-    $values3 = array();
     $xnom1 = array();
     $xnom2 = array();
-    $xnom3 = array();
-	$libchart=T_('Évolution des tickets ouverts et fermés sur toutes les années');
-	$query2=$db->query("SELECT year(date_create) AS x,COUNT(*) AS y FROM `tincidents` WHERE technician LIKE '$_POST[tech]' AND u_service LIKE '$_POST[service]' $where_service $where_agency AND $where_state AND criticality LIKE '$_POST[criticality]' AND type LIKE '$_POST[type]' AND category LIKE '$_POST[category]' AND date_create NOT LIKE '0000-00-00 00:00:00'  AND date_create LIKE '$_POST[year]-$_POST[month]-%' AND disable='0' GROUP BY x ");
-	$query3=$db->query("SELECT year(date_res) AS x,COUNT(*) AS y FROM `tincidents` WHERE technician LIKE '$_POST[tech]' AND u_service LIKE '$_POST[service]' $where_service $where_agency AND $where_state AND criticality LIKE '$_POST[criticality]' AND type LIKE '$_POST[type]' AND category LIKE '$_POST[category]' AND date_res NOT LIKE '0000-00-00 00:00:00' AND date_res LIKE '$_POST[year]-$_POST[month]-%' AND state='3' AND disable='0' GROUP BY x ");
-	$query1=$db->query("
-		SELECT year(tthreads.date) AS x,COUNT(DISTINCT tincidents.id) AS y FROM `tincidents`,`tthreads`
-		WHERE
-		tincidents.id=tthreads.ticket AND
-		tincidents.technician LIKE '$_POST[tech]' AND
-		tincidents.technician=tthreads.author AND
-		tincidents.u_service LIKE '$_POST[service]' 
-		$where_service $where_agency AND 
-		$where_state AND
-		tincidents.criticality LIKE '$_POST[criticality]' AND
-		tincidents.type LIKE '$_POST[type]' AND
-		tincidents.category LIKE '$_POST[category]' AND
-		tthreads.date LIKE '$_POST[year]-$_POST[month]-%' AND
-		tthreads.type='0' AND
-		tincidents.state!=3 AND
-		tincidents.disable='0' GROUP BY x 
-	");
+	$libchart="Évolution des tickets ouverts et fermés sur toutes les années";
+	$sql1= "SELECT year(date_create) as x,count(*) as y FROM `tincidents` WHERE technician LIKE '$_POST[tech]' and criticality like '$_POST[criticality]' and type LIKE '$_POST[type]' and category LIKE '$_POST[category]' and date_create not like '0000-00-00 00:00:00'  and date_create like '$_POST[year]-$_POST[month]-%' AND disable='0' group by x ";
+	$sql2= "SELECT year(date_res) as x,count(*) as y FROM `tincidents` WHERE technician LIKE '$_POST[tech]' and criticality like '$_POST[criticality]' and type LIKE '$_POST[type]' and category LIKE '$_POST[category]' and date_res not like '0000-00-00 00:00:00' and date_res like '$_POST[year]-$_POST[month]-%' AND disable='0' group by x ";
+	$result1 = mysql_query($sql1) or die('Erreur SQL !<br />'.$sql1.'<br />'.mysql_error());
+	$result2 = mysql_query($sql2) or die('Erreur SQL !<br />'.$sql2.'<br />'.mysql_error());
 	// push data in table
-	while($data = $query1->fetch())
-	{
-		array_push($values1 ,$data['y']); array_push($xnom1 ,$data['x']);	
-	}	
-	$query1->closeCursor(); 
-	while($data = $query2->fetch())
-	{
-		array_push($values2 ,$data['y']); array_push($xnom2 ,$data['x']);
-	}
-	$query2->closeCursor(); 
-	while($data = $query3->fetch())
-	{
-		array_push($values3 ,$data['y']); array_push($xnom3 ,$data['x']);
-	}
-	$query3->closeCursor(); 
+	while($data = mysql_fetch_array($result1)){array_push($values1 ,$data['y']); array_push($xnom1 ,$data['x']);}	
+	while($data = mysql_fetch_array($result2)){array_push($values2 ,$data['y']); array_push($xnom2 ,$data['x']);}	
 }
 
-if ($count!=0) 
+if ($res[0]!=0) 
 {
-	$liby=T_('Nombre de tickets');
+	$liby="Nombre de tickets";
 	$container="container1";		
 	include('./stat_line.php');
-	echo '<div id="'.$container.'" style="min-width: 400px; height: 400px; margin: 0 auto"></div>';
 }
-else { echo '<div class="alert alert-danger"><strong><i class="icon-remove"></i> '.T_('Erreur').':</strong> '.T_('Aucun ticket ouvert et fermé dans la plage indiqué').'.</div>';}
+else { echo '<div class="alert alert-danger"><strong><i class="icon-remove"></i> Erreur:</strong> Aucun ticket ouvert et fermé dans la plage indiqué.</div>';}
 
 //display query on debug mode
 if($rparameters['debug']==1)
 {
+    echo "sql1: $sql1 <br />sql2: $sql2 <br />";
     print_r($values1);echo "<br />";
     for($i=0;$i<sizeof($values1);$i++) 
     { 
@@ -227,5 +124,4 @@ if($rparameters['debug']==1)
     if ($i!=$last) echo '['.$xnom2[$i].','.$values2[$i].'],'; else echo '['.$xnom2[$i].','.$values2[$i].']';
     } 
 }
-echo '<p style="font-size:10px;text-align:right">* '.T_("Tickets avancés: Tickets sur lesquels un élément de résolution textuel à été ajouté par le technicien et qui ne sont pas dans l'état résolu").'</p>';
 ?>	

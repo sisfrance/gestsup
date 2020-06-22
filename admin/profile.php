@@ -1,13 +1,13 @@
 <?php
 ################################################################################
 # @Name : profile.php
-# @Description : rights management for all profiles
+# @Desc :  right management
 # @call : admin.php
 # @parameters : 
-# @Author : Flox
+# @Autor : Flox
 # @Create : 06/07/2013
-# @Update : 18/10/2019
-# @Version : 3.1.45
+# @Update : 07/09/2013
+# @Version : 3.0
 ################################################################################
 
 // initialize variables 
@@ -15,14 +15,10 @@ if(!isset($_GET['value'])) $_GET['value'] = '';
 if(!isset($_GET['profile'])) $_GET['profile'] = '';
 if(!isset($_GET['object'])) $_GET['object'] = '';
 
-$db_value=strip_tags($db->quote($_GET['value']));
-$db_profile=strip_tags($db->quote($_GET['profile']));
-$db_object=strip_tags($db->quote($_GET['object']));
-$db_object=str_replace("'","`",$db_object);
-
 if($_GET['value']!='')
 {
-	$db->exec("UPDATE trights SET $db_object=$db_value WHERE profile=$db_profile");
+	$query = "UPDATE trights SET `$_GET[object]`=$_GET[value] WHERE profile='$_GET[profile]'";
+	$exec = mysql_query($query);
 	//redirect
 		$www = "./index.php?page=admin&subpage=profile#$_GET[object]";
 		echo '<script language="Javascript">
@@ -32,172 +28,159 @@ if($_GET['value']!='')
 		</script>';
 }
 
-//dynamic right table
-echo '
-<div class="page-header position-relative">
-	<h1>
-		<i class="icon-lock"></i>  '.T_('Gestion des droits').'
-	</h1>
-</div><!--/.page-header-->
-';
-echo '
-	<div class="col-sm-12">
-		<table id="sample-table-1" class="table table-striped table-bordered table-hover">
-			<thead>
-				<tr>
-					<th>'.T_('Nom').'</th>
-					<th>'.T_('Description').'</th>
-					<th>'.T_('Utilisateur').'</th>
-					<th>'.T_('Utilisateur avec pouvoir').'</th>
-					<th>'.T_('Superviseur').'</th>
-					<th>'.T_('Technicien').'</th>
-					<th>'.T_('Administrateur').'</th>
-				</tr>
-			</thead>
-			<tbody>';					
-			$qry = $db->prepare("SHOW FULL COLUMNS FROM `trights`");
-			$qry->execute();
-			while ($row=$qry->fetch()) 
-			{	
-				//exclude id and profile
-				if ($row[0]!='id' && $row[0]!='profile')
-				{
-					//special char 
-					$row['Comment']=$row['Comment'];
-					echo '
-					<tr id="'.$row['0'].'">
-						<td>'.$row['0'].'</td>
-						<td>'.T_($row['Comment']).'</td>
-						<td>
-							<center>';
-								//find value
-								$qry2 = $db->prepare("SELECT * FROM `trights` WHERE profile=2");
-								$qry2->execute();
-								$rv=$qry2->fetch();
-								$qry2->closeCursor();
-								if($rv[$row[0]]!=0)
-								{
-									echo'	
-										<button title="'.T_('Désactiver pour le profil utilisateur').'" onclick=\'window.location.href="./index.php?page=admin&subpage=profile&value=0&object='.$row[0].'&profile=2";\'  class="btn btn-xs btn-success">
-											<i class="icon-ok bigger-120"></i>
-										</button>
-									';
-								} else {
-									echo'
-									<button title="'.T_('Activer pour le profil utilisateur').'" onclick=\'window.location.href="./index.php?page=admin&subpage=profile&value=2&object='.$row[0].'&profile=2";\' class="btn btn-xs btn-danger">
-										<i class="icon-ban-circle bigger-120"></i>
-									</button>
-									';
-								}
-								echo'
-							</center>	
-						</td>
-						<td>
-							<center>';
-								//find value
-								$qry2 = $db->prepare("SELECT * FROM `trights` WHERE profile='1'");
-								$qry2->execute();
-								$rv=$qry2->fetch();
-								$qry2->closeCursor();
-								if($rv[$row[0]]!=0)
-								{
-									echo'
-										<button title="'.T_('Désactiver pour le profil utilisateur avec pouvoir').'"  onclick=\'window.location.href="./index.php?page=admin&subpage=profile&value=0&object='.$row[0].'&profile=1";\' class="btn btn-xs btn-success">
-										<i class="icon-ok bigger-120"></i>
-										</button>
-									';
-								} else {
-									echo'
-									<button title="'.T_('Activer pour le profil utilisateur avec pouvoir').'"  onclick=\'window.location.href="./index.php?page=admin&subpage=profile&value=2&object='.$row[0].'&profile=1";\' class="btn btn-xs btn-danger">
-										<i class="icon-ban-circle bigger-120"></i>
-									</button>
-									';
-								}
-								echo'
-							</center>	
-						</td>
-						<td>
-							<center>';
-								//find value
-								$qry2 = $db->prepare("SELECT * FROM `trights` WHERE profile='3'");
-								$qry2->execute();
-								$rv=$qry2->fetch();
-								$qry2->closeCursor();
-								if($rv[$row[0]]!=0)
-								{
-									echo'
-										<button title="'.T_('Désactiver pour le profil superviseur').'"  onclick=\'window.location.href="./index.php?page=admin&subpage=profile&value=0&object='.$row[0].'&profile=3";\' class="btn btn-xs btn-success">
-										<i class="icon-ok bigger-120"></i>
-										</button>
-									';
-								} else {
-									echo'
-									<button title="'.T_('Activer pour le profil superviseur').'" onclick=\'window.location.href="./index.php?page=admin&subpage=profile&value=2&object='.$row[0].'&profile=3";\' class="btn btn-xs btn-danger">
-										<i class="icon-ban-circle bigger-120"></i>
-									</button>
-									';
-								}
-								echo'
-							</center>	
-						</td>
-						<td>
-							<center>';
-								//find value
-								$qry2 = $db->prepare("SELECT * FROM `trights` WHERE profile='0'");
-								$qry2->execute();
-								$rv=$qry2->fetch();
-								$qry2->closeCursor();
-								if($rv[$row[0]]!=0)
-								{
-									echo'
-										<button title="'.T_('Désactiver pour le profil technicien').'"  onclick=\'window.location.href="./index.php?page=admin&subpage=profile&value=0&object='.$row[0].'&profile=0";\' class="btn btn-xs btn-success">
-											<i class="icon-ok bigger-120"></i>
-										</button>
-									';
-								} else {
-									echo'
-									<button title="'.T_('Activer pour le profil technicien').'"  onclick=\'window.location.href="./index.php?page=admin&subpage=profile&value=2&object='.$row[0].'&profile=0";\' class="btn btn-xs btn-danger">
-										<i class="icon-ban-circle bigger-120"></i>
-									</button>
-									';
-								}
-								echo'
-							</center>	
-						</td>
-						<td>
-							<center>';
-								if ($row[0]!='admin') //avoid disable admin right problem for admin profile
-								{
+	//dynamic right table
+	echo '
+	<div class="page-header position-relative">
+		<h1>
+			<i class="icon-lock"></i>  Gestion des droits
+		</h1>
+	</div><!--/.page-header-->
+	';
+	echo '
+		<div class="col-sm-12">
+			<table id="sample-table-1" class="table table-striped table-bordered table-hover">
+				<thead>
+					<tr>
+						<th>Nom</th>
+						<th>Description</th>
+						<th>Utilisateur</th>
+						<th>Utilisateur avec pouvoir</th>
+						<th>Superviseur</th>
+						<th>Technicien</th>
+						<th>Administrateur</th>
+					</tr>
+				</thead>
+				<tbody>';					
+				$query= mysql_query("show full columns from trights"); 
+				while ($row=mysql_fetch_array($query)) 
+				{	
+					//exclude id and profile
+					if ($row[0]!='id' && $row[0]!='profile')
+					{
+						echo '
+						<tr id="'.$row['0'].'">
+							<td>'.$row['0'].'</td>
+							<td>'.$row['Comment'].'</td>
+							<td>
+								<center>';
 									//find value
-									$qry2 = $db->prepare("SELECT * FROM `trights` WHERE profile='4'");
-									$qry2->execute();
-									$rv=$qry2->fetch();
-									$qry2->closeCursor();
+									$qv= mysql_query("SELECT * FROM `trights` where profile LIKE '2'"); 
+									$rv = mysql_fetch_array($qv);
+									if($rv[$row[0]]!=0)
+									{
+										echo'	
+											<button onclick=\'window.location.href="./index.php?page=admin&subpage=profile&value=0&object='.$row[0].'&profile=2";\'  class="btn btn-xs btn-success">
+												<i class="icon-ok bigger-120"></i>
+											</button>
+										';
+									} else {
+										echo'
+										<button onclick=\'window.location.href="./index.php?page=admin&subpage=profile&value=2&object='.$row[0].'&profile=2";\' class="btn btn-xs btn-danger">
+											<i class="icon-ban-circle bigger-120"></i>
+										</button>
+										';
+									}
+									echo'
+								</center>	
+							</td>
+							<td>
+								<center>';
+									//find value
+									$qv= mysql_query("SELECT * FROM `trights` where profile LIKE '1'"); 
+									$rv = mysql_fetch_array($qv);
 									if($rv[$row[0]]!=0)
 									{
 										echo'
-											<button title="'.T_('Désactiver pour le profil administrateur').'"  onclick=\'window.location.href="./index.php?page=admin&subpage=profile&value=0&object='.$row[0].'&profile=4";\' class="btn btn-xs btn-success">
+											<button onclick=\'window.location.href="./index.php?page=admin&subpage=profile&value=0&object='.$row[0].'&profile=1";\' class="btn btn-xs btn-success">
 											<i class="icon-ok bigger-120"></i>
 											</button>
 										';
 									} else {
 										echo'
-										<button title="'.T_('Activer pour le profil administrateur').'" onclick=\'window.location.href="./index.php?page=admin&subpage=profile&value=2&object='.$row[0].'&profile=4";\' class="btn btn-xs btn-danger">
+										<button onclick=\'window.location.href="./index.php?page=admin&subpage=profile&value=2&object='.$row[0].'&profile=1";\' class="btn btn-xs btn-danger">
 											<i class="icon-ban-circle bigger-120"></i>
 										</button>
 										';
 									}
-								}
-								echo'
-							</center>	
-						</td>
-					</tr>
-					';
+									echo'
+								</center>	
+							</td>
+							<td>
+								<center>';
+									//find value
+									$qv= mysql_query("SELECT * FROM `trights` where profile LIKE '3'"); 
+									$rv = mysql_fetch_array($qv);
+									if($rv[$row[0]]!=0)
+									{
+										echo'
+											<button onclick=\'window.location.href="./index.php?page=admin&subpage=profile&value=0&object='.$row[0].'&profile=3";\' class="btn btn-xs btn-success">
+											<i class="icon-ok bigger-120"></i>
+											</button>
+										';
+									} else {
+										echo'
+										<button onclick=\'window.location.href="./index.php?page=admin&subpage=profile&value=2&object='.$row[0].'&profile=3";\' class="btn btn-xs btn-danger">
+											<i class="icon-ban-circle bigger-120"></i>
+										</button>
+										';
+									}
+									echo'
+								</center>	
+							</td>
+							<td>
+								<center>';
+									//find value
+									$qv= mysql_query("SELECT * FROM `trights` where profile LIKE '0'"); 
+									$rv = mysql_fetch_array($qv);
+									if($rv[$row[0]]!=0)
+									{
+										echo'
+											<button onclick=\'window.location.href="./index.php?page=admin&subpage=profile&value=0&object='.$row[0].'&profile=0";\' class="btn btn-xs btn-success">
+											<i class="icon-ok bigger-120"></i>
+											</button>
+									
+										';
+									} else {
+										echo'
+										<button onclick=\'window.location.href="./index.php?page=admin&subpage=profile&value=2&object='.$row[0].'&profile=0";\' class="btn btn-xs btn-danger">
+											<i class="icon-ban-circle bigger-120"></i>
+										</button>
+										';
+									}
+									echo'
+								</center>	
+							</td>
+							<td>
+								<center>';
+									//find value
+									$qv= mysql_query("SELECT * FROM `trights` where profile LIKE '4'"); 
+									$rv = mysql_fetch_array($qv);
+									if($rv[$row[0]]!=0)
+									{
+										echo'
+											<button onclick=\'window.location.href="./index.php?page=admin&subpage=profile&value=0&object='.$row[0].'&profile=4";\' class="btn btn-xs btn-success">
+											<i class="icon-ok bigger-120"></i>
+											</button>
+									
+										';
+									} else {
+										echo'
+										<button onclick=\'window.location.href="./index.php?page=admin&subpage=profile&value=2&object='.$row[0].'&profile=4";\' class="btn btn-xs btn-danger">
+											<i class="icon-ban-circle bigger-120"></i>
+										</button>
+										';
+									}
+									echo'
+								</center>	
+							</td>
+						</tr>
+						';
+					}
 				}
-			}
-			$qry->closeCursor(); 
-			echo'
-			</tbody>
-		</table>
-	</div><!--/span-->';
+				echo'
+				</tbody>
+			</table>
+		</div><!--/span-->';
+	
+
 ?>

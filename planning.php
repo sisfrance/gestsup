@@ -1,16 +1,16 @@
 <?php
 ################################################################################
 # @Name : planning.php
-# @Description : display planning
-# @Call : /menu.php
-# @Parameters : 
+# @Desc : display planning
+# @call : /menu.php
+# @paramters : 
 # @Author : Flox
 # @Create : 28/12/2012
-# @Update : 21/11/2017
-# @Version : 3.1.28
+# @Update : 18/02/2015
+# @Version : 3.0.11
 ################################################################################
 
-//initialize variables 
+// initialize variables 
 if(!isset($_GET['view'])) $_GET['view'] = '';
 if(!isset($mon_color)) $mon_color = '';
 if(!isset($tue_color)) $tue_color = '';
@@ -24,9 +24,9 @@ if(!isset($previous)) $previous = '';
 if(!isset($next)) $next = '';
 if(!isset($_POST['technician'])) $_POST['technician']= $_SESSION['user_id'];
 
-if(!isset($_GET['next'])) $_GET['next'] = 0;
-if(!isset($_GET['previous'])) $_GET['previous'] = 0;
-if(!isset($_GET['cursor'])) $_GET['cursor'] = 0;
+if(!isset($_GET['next'])) $_GET['next'] = '';
+if(!isset($_GET['previous'])) $_GET['previous'] = '';
+if(!isset($_GET['cursor'])) $_GET['cursor'] = '';
 if(!isset($_GET['delete'])) $_GET['delete'] = '';
 
 //default settings
@@ -34,126 +34,84 @@ if ($_GET['view']=='') $_GET['view']="week";
 if ($next=='') $next=0;
 if ($previous=='') $previous=0;
 
-//calculate dates
-$cursor=intval($_GET['cursor'])+intval($_GET['next'])-intval($_GET['previous']);
+//calc dates
+$cursor=$_GET['cursor']+$_GET['next']-$_GET['previous'];
 $current = date("Y-m-d H:i");
-$week = date("W") + $cursor;
+$week = date("W")-1 + $cursor;
 $year = date("Y");
 
-$monday = new DateTime();
-$monday->setISODate($year,$week,1); 
-$monday=$monday->format('d');
-$monday_month = new DateTime();
-$monday_month->setISODate($year,$week,1);
-$monday_month=$monday_month->format('m')-1;
+$monday=strtotime(''.$year.'-01-01 +'.($week-1).' WEEK MONDAY');
+$tuesday=strtotime(''.$year.'-01-01 +'.($week-1).' WEEK TUESDAY');
+$wednesday=strtotime(''.$year.'-01-01 +'.($week-1).' WEEK WEDNESDAY');
+$thursday=strtotime(''.$year.'-01-01 +'.$week.' WEEK THURSDAY');
+$friday=strtotime(''.$year.'-01-01 +'.$week.' WEEK FRIDAY');
+$saturday=strtotime(''.$year.'-01-01 +'.$week.' WEEK SATURDAY');
+$sunday=strtotime(''.$year.'-01-01 +'.$week.' WEEK SUNDAY');
 
-$tuesday = new DateTime();
-$tuesday->setISODate($year,$week,2);
-$tuesday=$tuesday->format('d');
-$tuesday_month = new DateTime();
-$tuesday_month->setISODate($year,$week,2);
-$tuesday_month=$tuesday_month->format('m')-1;
+$frday = array ('Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi');
+$frmonth = array ('Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Aout', 'Septembre', 'Octobre', 'Novembre', 'Décembre');
 
-$wednesday = new DateTime();
-$wednesday->setISODate($year,$week,3);
-$wednesday=$wednesday->format('d');
-$wednesday_month = new DateTime();
-$wednesday_month->setISODate($year,$week,3);
-$wednesday_month=$wednesday_month->format('m')-1;
-
-$thursday = new DateTime();
-$thursday->setISODate($year,$week,4);
-$thursday=$thursday->format('d');
-$thursday_month = new DateTime();
-$thursday_month->setISODate($year,$week,4);
-$thursday_month=$thursday_month->format('m')-1;
-
-$friday = new DateTime();
-$friday->setISODate($year,$week,5);
-$friday=$friday->format('d');
-$friday_month = new DateTime();
-$friday_month->setISODate($year,$week,5);
-$friday_month=$friday_month->format('m')-1;
-
-$saturday = new DateTime();
-$saturday->setISODate($year,$week,6);
-$saturday=$saturday->format('d');
-$saturday_month = new DateTime();
-$saturday_month->setISODate($year,$week,6);
-$saturday_month=$saturday_month->format('m')-1;
-
-$sunday = new DateTime();
-$sunday->setISODate($year,$week,7);
-$sunday=$sunday->format('d');
-$sunday_month = new DateTime();
-$sunday_month->setISODate($year,$week,7);
-$sunday_month=$sunday_month->format('m')-1;
-
-$frday = array (T_('Lundi'), T_('Mardi'), T_('Mercredi'), T_('Jeudi'), T_('Vendredi'), T_('Samedi'),T_('Dimanche'), );
-$frmonth = array (T_('Janvier'), T_('Février'), T_('Mars'), T_('Avril'), T_('Mai'), T_('Juin'), T_('Juillet'), T_('Août'), T_('Septembre'), T_('Octobre'), T_('Novembre'), T_('Décembre'));
-
-//delete events
+//Delete events
 if($_GET['delete']!='')
 {
-	$db_delete=strip_tags($db->quote($_GET['delete']));
-	//disable ticket
-	$db->exec("DELETE FROM tevents WHERE incident=$db_delete");
+//disable ticket
+$query = "DELETE FROM tevents WHERE incident=$_GET[delete]";
+$exec = mysql_query($query) or die('Erreur SQL !<br /><br />'.mysql_error());
 }
 
-//select technician selection
+
+//Select technician selection
 if($_POST['technician']!='%')
 {
-   //select name of technician
-   $querytech= $db->query("SELECT * FROM tusers WHERE id = $_POST[technician]"); 
-   $resulttech=$querytech->fetch();
-   $displaytech=T_('pour').'  '.$resulttech['firstname'].' '.$resulttech['lastname'];
+   //Select name of technician
+   $querytech= mysql_query("SELECT * FROM tusers WHERE id = $_POST[technician]"); 
+   $resulttech=mysql_fetch_array($querytech);
+   $displaytech='de  '.$resulttech['firstname'].' '.$resulttech['lastname'];
 }
 else
 {
    $_POST['technician']='%';
-   $displaytech=T_('de tous les techniciens');
+   $displaytech='de tous les techniciens';
 }
 
-//display head
+//Display Head
 echo '
 <div class="page-header position-relative">
 	<h1>
 		<i class="icon-calendar"></i>  
 ';
-if ($_GET['view']=='day') echo T_('Planning').' '.$displaytech.' '.T_('du').' '.$frday[date('w')].' '.date("d/m/Y"); 
-if ($_GET['view']=='week') echo T_('Planning').' '.$displaytech.' '.T_('depuis').' '.date("d/m/Y", strtotime('First Monday January '.$year.' +'.($week-1).' Week')).' '.T_('au').' '.date("d/m/Y", strtotime('First Monday January '.$year.' +'.$week.' Week -1 day')); 
+if ($_GET['view']=='day') echo 'Planning '.$displaytech.' du '.$frday[date('w')].' '.date("d/m/Y"); 
+if ($_GET['view']=='week') echo 'Planning '.$displaytech.' du '.date("d/m/Y", strtotime('First Monday January '.$year.' +'.($week-1).' Week')).' au '.date("d/m/Y", strtotime('First Monday January '.$year.' +'.$week.' Week -1 day')); 
 echo '
 	</h1>
 </div>';
 echo'
 	<div class="sidebar-shortcuts-large" id="sidebar-shortcuts-large">
-		<button title="'.T_('Semaine précédente').'" onclick=\'window.location.href="./index.php?page=planning&view=week&cursor='.$cursor.'&previous=1";\' class="btn btn-info">
+		<button title="Semaine précédente" onclick=\'window.location.href="./index.php?page=planning&view=week&cursor='.$cursor.'&previous=1";\' class="btn btn-info">
 			<i class="icon-arrow-left"></i>
 		</button>
-		<button title="'.T_('Semaine suivante').'" onclick=\'window.location.href="./index.php?page=planning&view=week&cursor='.$cursor.'&next=1";\' class="btn btn-info">
+		<button title="Semaine suivante" onclick=\'window.location.href="./index.php?page=planning&view=week&cursor='.$cursor.'&next=1";\' class="btn btn-info">
 			<i class="icon-arrow-right"></i>
 		</button>
 		&nbsp;&nbsp;
-		<th colspan="8">'.T_('Semaine').' '.date("W", strtotime('First Monday January '.$year.' +'.($week-1).' Week')).' </th>
+		<th colspan="8">Semaine '.date("W", strtotime('First Monday January '.$year.' +'.($week-1).' Week')).' </th>
 	</div>
 	<br />
 ';
 ?>
 <form method="post" action="" name="technician">
-	<?php echo T_('Technicien'); ?>:
+	Technicien:
   <select name="technician" onchange=submit()>
 	 <?php
-	 $query = $db->query("SELECT * FROM tusers WHERE (profile=0 OR profile=4) and disable=0");            
-	 while ($row = $query->fetch()) 
-	 {
-		if ($row['id'] == $_POST['technician']) 
-		{ 
-			echo '<option value="'.$row['id'].'" selected>'.$row['firstname'].' '.$row['lastname'].'</option>'; 
- 		} else {
-			echo '<option value="'.$row['id'].'" >'.$row['firstname'].' '.$row['lastname'].'</option>'; 
-		}
+	 $query = mysql_query("SELECT * FROM tusers WHERE profile=0 OR profile=4 and disable=0");            
+	 while ($row=mysql_fetch_array($query)) {
+		if ($row['id'] == $_POST['technician']) $selected1="selected" ;
+		if ($row['id'] == $_POST['technician']) $find="1" ;
+		echo "<option value=\"$row[id]\" $selected1>$row[firstname] $row[lastname]</option>"; 
+		$selected1="";
 	 } 
-	 if ($_POST['technician']=='%') {echo '<option value="%" selected >'.T_('Tous').'</option>'; } else {echo '<option value="%">'.T_('Tous').'</option>'; }
+	 echo "<option value=\"%\" >Tous</option>";
+	 if ($find!="1") echo "<option value=\"%\" selected>Tous</option>";                                    
 	 ?>
   </select> 
 </form>
@@ -162,36 +120,15 @@ echo'
 ////////////////////////////////////////////////////////////WEEK VIEW//////////////////////////////////////////////////////////////////
 if ($_GET['view']=='week') 
 {
-	$period=T_('Semaine').' '.date("W"); 
+	$period='Semaine '.date("W"); 
 	$date=date("Y-m-d");
-	//find day for display green on current day
-	$current_monday = new DateTime();
-	$current_monday->setISODate($year,$week,1);
-	$current_monday=$current_monday->format('Y-m-d');
-	if($date==$current_monday) {$mon_color='bgcolor="#CEF6CE"';}
-	$current_tuesday = new DateTime();
-	$current_tuesday->setISODate($year,$week,2);
-	$current_tuesday=$current_tuesday->format('Y-m-d');
-	if($date==$current_tuesday) {$tue_color='bgcolor="#CEF6CE"';}
-	$current_wednesday = new DateTime();
-	$current_wednesday->setISODate($year,$week,3);
-	$current_wednesday=$current_wednesday->format('Y-m-d');
-	if($date==$current_wednesday) {$wed_color='bgcolor="#CEF6CE"';}
-	$current_thursday = new DateTime();
-	$current_thursday->setISODate($year,$week,4);
-	$current_thursday=$current_thursday->format('Y-m-d');
-	if($date==$current_thursday) {$thu_color='bgcolor="#CEF6CE"';}
-	$current_friday = new DateTime();
-	$current_friday->setISODate($year,$week,5);
-	$current_friday=$current_friday->format('Y-m-d');
-	if($date==$current_friday) {$fri_color='bgcolor="#CEF6CE"';}
-	$current_saturday = new DateTime();
-	$current_saturday->setISODate($year,$week,6);
-	$current_saturday=$current_saturday->format('Y-m-d');
-	$current_sunday = new DateTime();
-	$current_sunday->setISODate($year,$week,7);
-	$current_sunday=$current_sunday->format('Y-m-d');
-	
+	//find day for display green on currrent day
+	if(date("D")=='Mon' && date("j")==date("d", $monday)) $mon_color='bgcolor="#CEF6CE"';
+	if(date("D")=='Tue' && date("j")==date("d", $tuesday)) $tue_color='bgcolor="#CEF6CE"';
+	if(date("D")=='Wed' && date("j")==date("d", $wednesday)) $wed_color='bgcolor="#CEF6CE"';
+	if(date("D")=='Thu' && date("j")==date("d", $thursday)) $thu_color='bgcolor="#CEF6CE"';
+	if(date("D")=='Fri' && date("j")==date("d", $friday)) $fri_color='bgcolor="#CEF6CE"';
+
 	$sat_color='bgcolor="#F2F5A9"';
 	$sun_color='bgcolor="#F2F5A9"';
 	
@@ -201,183 +138,186 @@ if ($_GET['view']=='week')
 			<td></td>
 			<td '.$mon_color.' align="center">
 				<b>
-				'.$frday[0].'
-				'.$monday.'
-				'.$frmonth[$monday_month].' 
+				'.$frday[date("w", $monday)].'
+				'.date("d", $monday).'
+				'.$frmonth[date("m", $monday)-1].' 
 				</b>
 			</td>
 			<td '.$tue_color.' align="center">
 				<b>
-				'.$frday[1].'
-				'.$tuesday.'
-				'.$frmonth[$tuesday_month].' 
+				'.$frday[date("w", $tuesday)].'
+				'.date("d", $tuesday).'
+				'.$frmonth[date("m", $tuesday)-1].' 
 				</b>
 			</td>
 			<td '.$wed_color.' align="center">
 				<b>
-				'.$frday[2].'
-				'.$wednesday.'
-				'.$frmonth[$wednesday_month].' 
+				'.$frday[date("w", $wednesday)].'
+				'.date("d", $wednesday).'
+				'.$frmonth[date("m", $wednesday)-1].' 
 				</b>
 			</td>
 			<td '.$thu_color.' align="center">
 				<b>
-				'.$frday[3].'
-				'.$thursday.'
-				'.$frmonth[$thursday_month].' 
+				'.$frday[date("w", $thursday)].'
+				'.date("d", $thursday).'
+				'.$frmonth[date("m", $thursday)-1].' 
 				</b>
 			</td>
 			<td '.$fri_color.' align="center">
 				<b>
-				'.$frday[4].'
-				'.$friday.'
-				'.$frmonth[$friday_month].' 
+				'.$frday[date("w", $friday)].'
+				'.date("d", $friday).'
+				'.$frmonth[date("m", $friday)-1].' 
 				</b>
 			</td>
 			<td '.$sat_color.' align="center">
 				<b>
-				'.$frday[5].'
-				'.$saturday.'
-				'.$frmonth[$saturday_month].' 
+				'.$frday[date("w", $saturday)].'
+				'.date("d", $saturday).'
+				'.$frmonth[date("m", $saturday)-1].' 
 				</b>
 			</td>
 			<td '.$sun_color.' align="center">
 				<b>
-				'.$frday[6].'
-				'.$sunday.'
-				'.$frmonth[$sunday_month].' 
+				'.$frday[date("w", $sunday)].'
+				'.date("d", $sunday).'
+				'.$frmonth[date("m", $sunday)-1].' 
 				</b>
 			</td align="center">
 	</tr>';
 	//Display each time line
 	for ($i = 7; $i <= 19; $i++) 
 	{ 
+
 		echo '
 		<tr>
 			<td><b>'.$i.'h</b></td>
 			<td '.$mon_color.'>';
-				$query = $db->query("SELECT tevents.* FROM tevents,tincidents WHERE tevents.incident=tincidents.id AND tincidents.disable=0 AND tevents.technician LIKE '$_POST[technician]' AND (tevents.date_start='$current_monday $i:00' OR tevents.date_end='$current_monday $i:00' OR (tevents.date_start<'$current_monday $i:00' AND tevents.date_end>'$current_monday $i:00'))");
-				while ($row = $query->fetch())
+				// find Monday date
+				$date=date("Y-m-d", $monday);
+				$query= mysql_query("SELECT * FROM tevents WHERE technician LIKE '$_POST[technician]' AND (date_start='$date $i:00' OR date_end='$date $i:00' OR (date_start<'$date $i:00' AND date_end>'$date $i:00'))");
+				while ($row=mysql_fetch_array($query))
 				{
 					if ($row['type']==1) $type='<i class="icon-bell-alt orange"></i>'; else $type='<i class="icon-calendar" blue></i>';
-					$queryi= $db->query( "SELECT * FROM `tincidents` WHERE id=$row[incident] AND disable=0");
-					$rowi = $queryi->fetch();
+					$queryi= mysql_query( "SELECT * FROM `tincidents` WHERE id=$row[incident] ");
+					$rowi = mysql_fetch_array($queryi);
 					//Select name of technician
-					if($_POST['technician']=='%') $querytech= $db->query("SELECT * FROM tusers WHERE id =$rowi[technician]"); else $querytech= $db->query("SELECT * FROM tusers WHERE id =$_POST[technician]"); 
-					$resulttech=$querytech->fetch();
-					$querytech->closeCursor(); 
-					echo '<a title="'.T_('Voir le ticket').' '.$rowi['id'].'" href="./index.php?page=ticket&id='.$rowi['id'].'">'.$type.' '.$resulttech['firstname'].' '.$resulttech['lastname'].': '.$rowi['title'].'</a>';
-					echo '<a title="'.T_('Supprimer cet évènement').'" href="./index.php?page=planning&view='.$_GET['view'].'&cursor='.$_GET['cursor'].'&next='.$_GET['next'].'&delete='.$rowi['id'].'"> <i class="icon-trash red"></i></a>';
+					if($_POST['technician']=='%') $querytech= mysql_query("SELECT * FROM tusers WHERE id =$rowi[technician]"); else $querytech= mysql_query("SELECT * FROM tusers WHERE id =$_POST[technician]"); 
+					$resulttech=mysql_fetch_array($querytech);
+					echo '<a title="Voir le ticket '.$rowi['id'].'" href="./index.php?page=ticket&id='.$rowi['id'].'">'.$type.' '.$resulttech['firstname'].' '.$resulttech['lastname'].': '.$rowi['title'].'</a>';
+					echo '<a title="Supprimer cet évenement" href="./index.php?page=planning&view='.$_GET['view'].'&cursor='.$_GET['cursor'].'&next='.$_GET['next'].'&delete='.$rowi['id'].'"> <i class="icon-trash red"></i></a>';
 					echo '<br />';
 				}
-				$query->closeCursor(); 
 			echo '
 			</td>
 			<td '.$tue_color.' >';
-				$query = $db->query("SELECT tevents.* FROM tevents,tincidents WHERE tevents.incident=tincidents.id AND tincidents.disable=0 AND tevents.technician LIKE '$_POST[technician]' AND (tevents.date_start='$current_tuesday $i:00' OR tevents.date_end='$current_tuesday $i:00' OR (tevents.date_start<'$current_tuesday $i:00' AND tevents.date_end>'$current_tuesday $i:00'))");
-				while ($row = $query->fetch())
+				// find Tuesday date
+				$date=date("Y-m-d", $tuesday);
+				$query= mysql_query("SELECT * FROM tevents WHERE technician LIKE '$_POST[technician]' AND (date_start='$date $i:00' OR date_end='$date $i:00' OR (date_start<'$date $i:00' AND date_end>'$date $i:00'))");
+				while ($row=mysql_fetch_array($query))
 				{
 					if ($row['type']==1) $type='<i class="icon-bell-alt orange"></i>'; else $type='<i class="icon-calendar" blue></i>';
-					$queryi= $db->query( "SELECT * FROM `tincidents` WHERE id=$row[incident] AND disable=0");
-					$rowi = $queryi->fetch();
+					$queryi= mysql_query( "SELECT * FROM `tincidents` WHERE id=$row[incident] ");
+					$rowi = mysql_fetch_array($queryi);
 					//Select name of technician
-					if($_POST['technician']=='%') $querytech= $db->query("SELECT * FROM tusers WHERE id =$rowi[technician]"); else $querytech= $db->query("SELECT * FROM tusers WHERE id =$_POST[technician]"); 
-					$resulttech=$querytech->fetch();
-					$querytech->closeCursor();
-					//echo '<span class="label label-sm label-info arrowed-in" title="tickets en attente de prise en charge">#2430</span>&nbsp;';
-					echo '<a title="'.T_('Voir le ticket').' '.$rowi['id'].'" href="./index.php?page=ticket&id='.$rowi['id'].'">'.$type.' '.$resulttech['firstname'].' '.$resulttech['lastname'].': '.$rowi['title'].'</a>';
-					echo '<a title="'.T_('Supprimer cet évènement').'" href="./index.php?page=planning&view='.$_GET['view'].'&cursor='.$_GET['cursor'].'&next='.$_GET['next'].'&delete='.$rowi['id'].'"> <i class="icon-trash red"></i></a>';
+					if($_POST['technician']=='%') $querytech= mysql_query("SELECT * FROM tusers WHERE id =$rowi[technician]"); else $querytech= mysql_query("SELECT * FROM tusers WHERE id =$_POST[technician]"); 
+					$resulttech=mysql_fetch_array($querytech);
+					echo '<a title="Voir le ticket '.$rowi['id'].'" href="./index.php?page=ticket&id='.$rowi['id'].'">'.$type.' '.$resulttech['firstname'].' '.$resulttech['lastname'].': '.$rowi['title'].'</a>';
+					echo '<a title="Supprimer cet évenement" href="./index.php?page=planning&view='.$_GET['view'].'&cursor='.$_GET['cursor'].'&next='.$_GET['next'].'&delete='.$rowi['id'].'"> <i class="icon-trash red"></i></a>';
 					echo '<br />';
 				}
-				$query->closeCursor(); 
 			echo '
 			</td>
 			<td '.$wed_color.'>';
-				$query = $db->query("SELECT tevents.* FROM tevents,tincidents WHERE tevents.incident=tincidents.id AND tincidents.disable=0 AND tevents.technician LIKE '$_POST[technician]' AND (tevents.date_start='$current_wednesday $i:00' OR tevents.date_end='$current_wednesday $i:00' OR (tevents.date_start<'$current_wednesday $i:00' AND tevents.date_end>'$current_wednesday $i:00'))");
-				while ($row = $query->fetch())
+				// find Wednesday date
+				$date=date("Y-m-d", $wednesday);
+				$query= mysql_query("SELECT * FROM tevents WHERE technician LIKE '$_POST[technician]' AND (date_start='$date $i:00' OR date_end='$date $i:00' OR (date_start<'$date $i:00' AND date_end>'$date $i:00'))");
+				//echo "SELECT * FROM tevents WHERE technician LIKE '$_POST[technician]' AND (date_start='$date $i:00' OR date_end='$date $i:00' OR (date_start<'$date $i:00' AND date_end>'$date $i:00'))";
+				while ($row=mysql_fetch_array($query))
 				{
 					if ($row['type']==1) $type='<i class="icon-bell-alt orange"></i>'; else $type='<i class="icon-calendar" blue></i>';
-					$queryi= $db->query( "SELECT * FROM `tincidents` WHERE id=$row[incident] AND disable=0");
-					$rowi = $queryi->fetch();
+					$queryi= mysql_query( "SELECT * FROM `tincidents` WHERE id=$row[incident] ");
+					$rowi = mysql_fetch_array($queryi);
 					//Select name of technician
-					if($_POST['technician']=='%') $querytech= $db->query("SELECT * FROM tusers WHERE id =$rowi[technician]"); else $querytech= $db->query("SELECT * FROM tusers WHERE id =$_POST[technician]"); 
-					$resulttech=$querytech->fetch();
-					echo '<a title="'.T_('Voir le ticket').' '.$rowi['id'].'" href="./index.php?page=ticket&id='.$rowi['id'].'">'.$type.' '.$resulttech['firstname'].' '.$resulttech['lastname'].': '.$rowi['title'].'</a>';
-					echo '<a title="'.T_('Supprimer cet évènement').'" href="./index.php?page=planning&view='.$_GET['view'].'&cursor='.$_GET['cursor'].'&next='.$_GET['next'].'&delete='.$rowi['id'].'"> <i class="icon-trash red"></i></a>';
+					if($_POST['technician']=='%') $querytech= mysql_query("SELECT * FROM tusers WHERE id =$rowi[technician]"); else $querytech= mysql_query("SELECT * FROM tusers WHERE id =$_POST[technician]"); 
+					$resulttech=mysql_fetch_array($querytech);
+					echo '<a title="Voir le ticket '.$rowi['id'].'" href="./index.php?page=ticket&id='.$rowi['id'].'">'.$type.' '.$resulttech['firstname'].' '.$resulttech['lastname'].': '.$rowi['title'].'</a>';
+					echo '<a title="Supprimer cet évenement" href="./index.php?page=planning&view='.$_GET['view'].'&cursor='.$_GET['cursor'].'&next='.$_GET['next'].'&delete='.$rowi['id'].'"> <i class="icon-trash red"></i></a>';
 					echo '<br />';
 				}
 			echo '
 			</td>
 			<td '.$thu_color.'>';
-				$query = $db->query("SELECT tevents.* FROM tevents,tincidents WHERE tevents.incident=tincidents.id AND tincidents.disable=0 AND tevents.technician LIKE '$_POST[technician]' AND (tevents.date_start='$current_thursday $i:00' OR tevents.date_end='$current_thursday $i:00' OR (tevents.date_start<'$current_thursday $i:00' AND tevents.date_end>'$current_thursday $i:00'))");
-				while ($row = $query->fetch())
+				// find Thursday date
+				$date=date("Y-m-d", $thursday);
+				$query= mysql_query("SELECT * FROM tevents WHERE technician LIKE '$_POST[technician]' AND (date_start='$date $i:00' OR date_end='$date $i:00' OR (date_start<'$date $i:00' AND date_end>'$date $i:00'))");
+				while ($row=mysql_fetch_array($query))
 				{
 					if ($row['type']==1) $type='<i class="icon-bell-alt orange"></i>'; else $type='<i class="icon-calendar" blue></i>';
-					$queryi= $db->query( "SELECT * FROM `tincidents` WHERE id=$row[incident] AND disable=0");
-					$rowi = $queryi->fetch();
+					$queryi= mysql_query( "SELECT * FROM `tincidents` WHERE id=$row[incident] ");
+					$rowi = mysql_fetch_array($queryi);
 					//Select name of technician
-					if($_POST['technician']=='%') $querytech= $db->query("SELECT * FROM tusers WHERE id =$rowi[technician]"); else $querytech= $db->query("SELECT * FROM tusers WHERE id =$_POST[technician]"); 
-					$resulttech=$querytech->fetch();
-					$querytech->closeCursor(); 
-					echo '<a title="'.T_('Voir le ticket').' '.$rowi['id'].'" href="./index.php?page=ticket&id='.$rowi['id'].'">'.$type.' '.$resulttech['firstname'].' '.$resulttech['lastname'].': '.$rowi['title'].'</a>';
-					echo '<a title="'.T_('Supprimer cet évènement').'" href="./index.php?page=planning&view='.$_GET['view'].'&cursor='.$_GET['cursor'].'&next='.$_GET['next'].'&delete='.$rowi['id'].'"> <i class="icon-trash red"></i></a>';
+					if($_POST['technician']=='%') $querytech= mysql_query("SELECT * FROM tusers WHERE id =$rowi[technician]"); else $querytech= mysql_query("SELECT * FROM tusers WHERE id =$_POST[technician]"); 
+					$resulttech=mysql_fetch_array($querytech);
+					echo '<a title="Voir le ticket '.$rowi['id'].'" href="./index.php?page=ticket&id='.$rowi['id'].'">'.$type.' '.$resulttech['firstname'].' '.$resulttech['lastname'].': '.$rowi['title'].'</a>';
+					echo '<a title="Supprimer cet évenement" href="./index.php?page=planning&view='.$_GET['view'].'&cursor='.$_GET['cursor'].'&next='.$_GET['next'].'&delete='.$rowi['id'].'"> <i class="icon-trash red"></i></a>';
 					echo '<br />';
 				}
-				$query->closeCursor();
 			echo '
 			</td>
 			<td '.$fri_color.'>';
-				$query = $db->query("SELECT tevents.* FROM tevents,tincidents WHERE tevents.incident=tincidents.id AND tincidents.disable=0 AND tevents.technician LIKE '$_POST[technician]' AND (tevents.date_start='$current_friday $i:00' OR tevents.date_end='$current_friday $i:00' OR (tevents.date_start<'$current_friday $i:00' AND tevents.date_end>'$current_friday $i:00'))");
-				while ($row = $query->fetch())
+				// find Friday date
+				$date=date("Y-m-d", $friday);
+				$query= mysql_query("SELECT * FROM tevents WHERE technician LIKE '$_POST[technician]' AND (date_start='$date $i:00' OR date_end='$date $i:00' OR (date_start<'$date $i:00' AND date_end>'$date $i:00'))");
+				while ($row=mysql_fetch_array($query))
 				{
 					if ($row['type']==1) $type='<i class="icon-bell-alt orange"></i>'; else $type='<i class="icon-calendar" blue></i>';
-					$queryi= $db->query( "SELECT * FROM `tincidents` WHERE id=$row[incident] AND disable=0");
-					$rowi = $queryi->fetch();
+					$queryi= mysql_query( "SELECT * FROM `tincidents` WHERE id=$row[incident] ");
+					$rowi = mysql_fetch_array($queryi);
 					//Select name of technician
-					if($_POST['technician']=='%') $querytech= $db->query("SELECT * FROM tusers WHERE id =$rowi[technician]"); else $querytech= $db->query("SELECT * FROM tusers WHERE id =$_POST[technician]"); 
-					$resulttech=$querytech->fetch();
-					$querytech->closeCursor();
-					echo '<a title="'.T_('Voir le ticket').' '.$rowi['id'].'" href="./index.php?page=ticket&id='.$rowi['id'].'">'.$type.' '.$resulttech['firstname'].' '.$resulttech['lastname'].': '.$rowi['title'].'</a>';
-					echo '<a title="'.T_('Supprimer cet évènement').'" href="./index.php?page=planning&view='.$_GET['view'].'&cursor='.$_GET['cursor'].'&next='.$_GET['next'].'&delete='.$rowi['id'].'"> <i class="icon-trash red"></i></a>';
+					if($_POST['technician']=='%') $querytech= mysql_query("SELECT * FROM tusers WHERE id =$rowi[technician]"); else $querytech= mysql_query("SELECT * FROM tusers WHERE id =$_POST[technician]"); 
+					$resulttech=mysql_fetch_array($querytech);
+					echo '<a title="Voir le ticket '.$rowi['id'].'" href="./index.php?page=ticket&id='.$rowi['id'].'">'.$type.' '.$resulttech['firstname'].' '.$resulttech['lastname'].': '.$rowi['title'].'</a>';
+					echo '<a title="Supprimer cet évenement" href="./index.php?page=planning&view='.$_GET['view'].'&cursor='.$_GET['cursor'].'&next='.$_GET['next'].'&delete='.$rowi['id'].'"> <i class="icon-trash red"></i></a>';
 					echo '<br />';
 				}
-				$query->closeCursor();
 			echo '
 			</td>
 			<td '.$sat_color.'>';
-				$query = $db->query("SELECT tevents.* FROM tevents,tincidents WHERE tevents.incident=tincidents.id AND tincidents.disable=0 AND tevents.technician LIKE '$_POST[technician]' AND (tevents.date_start='$current_saturday $i:00' OR tevents.date_end='$current_saturday $i:00' OR (tevents.date_start<'$current_saturday $i:00' AND tevents.date_end>'$current_saturday $i:00')) ");
-				while ($row = $query->fetch())
+				// find Saturday date
+				$date=date("Y-m-d", $saturday);
+				$query= mysql_query("SELECT * FROM tevents WHERE technician LIKE '$_POST[technician]' AND (date_start='$date $i:00' OR date_end='$date $i:00' OR (date_start<'$date $i:00' AND date_end>'$date $i:00')) ");
+				while ($row=mysql_fetch_array($query))
 				{
 					if ($row['type']==1) $type='<i class="icon-bell-alt orange"></i>'; else $type='<i class="icon-calendar" blue></i>';
-					$queryi= $db->query( "SELECT * FROM `tincidents` WHERE id=$row[incident] AND disable=0");
-					$rowi = $queryi->fetch();
+					$queryi= mysql_query( "SELECT * FROM `tincidents` WHERE id=$row[incident] ");
+					$rowi = mysql_fetch_array($queryi);
 					//Select name of technician
-					if($_POST['technician']=='%') $querytech= $db->query("SELECT * FROM tusers WHERE id =$rowi[technician]"); else $querytech= $db->query("SELECT * FROM tusers WHERE id =$_POST[technician]"); 
-					$resulttech=$querytech->fetch();
-					$querytech->closeCursor();
-					echo '<a title="'.T_('Voir le ticket').' '.$rowi['id'].'" href="./index.php?page=ticket&id='.$rowi['id'].'">'.$type.' '.$resulttech['firstname'].' '.$resulttech['lastname'].': '.$rowi['title'].'</a>';
-					echo '<a title="'.T_('Supprimer cet évènement').'" href="./index.php?page=planning&view='.$_GET['view'].'&cursor='.$_GET['cursor'].'&next='.$_GET['next'].'&delete='.$rowi['id'].'"> <i class="icon-trash red"></i></a>';
+					if($_POST['technician']=='%') $querytech= mysql_query("SELECT * FROM tusers WHERE id =$rowi[technician]"); else $querytech= mysql_query("SELECT * FROM tusers WHERE id =$_POST[technician]"); 
+					$resulttech=mysql_fetch_array($querytech);
+					echo '<a title="Voir le ticket '.$rowi['id'].'" href="./index.php?page=ticket&id='.$rowi['id'].'">'.$type.' '.$resulttech['firstname'].' '.$resulttech['lastname'].': '.$rowi['title'].'</a>';
+					echo '<a title="Supprimer cet évenement" href="./index.php?page=planning&view='.$_GET['view'].'&cursor='.$_GET['cursor'].'&next='.$_GET['next'].'&delete='.$rowi['id'].'"> <i class="icon-trash red"></i></a>';
 					echo '<br />';
 				}
-				$query->closeCursor();
 			echo '
 			</td>
 			<td '.$sun_color.'>';
-				$query = $db->query("SELECT tevents.* FROM tevents,tincidents WHERE tevents.incident=tincidents.id AND tincidents.disable=0 AND tevents.technician LIKE '$_POST[technician]' AND (tevents.date_start='$current_sunday $i:00' OR tevents.date_end='$current_sunday $i:00' OR (tevents.date_start<'$current_sunday $i:00' AND tevents.date_end>'$current_sunday $i:00'))");
-				while ($row = $query->fetch())
+				// find Sunday date
+				$date=date("Y-m-d", $sunday);
+				$query= mysql_query("SELECT * FROM tevents WHERE technician LIKE '$_POST[technician]' AND (date_start='$date $i:00' OR date_end='$date $i:00' OR (date_start<'$date $i:00' AND date_end>'$date $i:00'))");
+				while ($row=mysql_fetch_array($query))
 				{
 					if ($row['type']==1) $type='<i class="icon-bell-alt orange"></i>'; else $type='<i class="icon-calendar" blue></i>';
-					$queryi= $db->query( "SELECT * FROM `tincidents` WHERE id=$row[incident] AND disable=0");
-					$rowi = $queryi->fetch();
+					$queryi= mysql_query( "SELECT * FROM `tincidents` WHERE id=$row[incident] ");
+					$rowi = mysql_fetch_array($queryi);
 					//Select name of technician
-					if($_POST['technician']=='%') $querytech= $db->query("SELECT * FROM tusers WHERE id =$rowi[technician]"); else $querytech= $db->query("SELECT * FROM tusers WHERE id =$_POST[technician]"); 
-					$resulttech=$querytech->fetch();
-					$querytech->closeCursor();
-					echo '<a title="'.T_('Voir le ticket').' '.$rowi['id'].'" href="./index.php?page=ticket&id='.$rowi['id'].'">'.$type.' '.$resulttech['firstname'].' '.$resulttech['lastname'].': '.$rowi['title'].'</a>';
-					echo '<a title="'.T_('Supprimer cet évènement').'" href="./index.php?page=planning&view='.$_GET['view'].'&cursor='.$_GET['cursor'].'&next='.$_GET['next'].'&delete='.$rowi['id'].'"> <i class="icon-trash red"></i></a>';
+					if($_POST['technician']=='%') $querytech= mysql_query("SELECT * FROM tusers WHERE id =$rowi[technician]"); else $querytech= mysql_query("SELECT * FROM tusers WHERE id =$_POST[technician]"); 
+					$resulttech=mysql_fetch_array($querytech);
+					echo '<a title="Voir le ticket '.$rowi['id'].'" href="./index.php?page=ticket&id='.$rowi['id'].'">'.$type.' '.$resulttech['firstname'].' '.$resulttech['lastname'].': '.$rowi['title'].'</a>';
+					echo '<a title="Supprimer cet évenement" href="./index.php?page=planning&view='.$_GET['view'].'&cursor='.$_GET['cursor'].'&next='.$_GET['next'].'&delete='.$rowi['id'].'"> <i class="icon-trash red"></i></a>';
 					echo '<br />';
 				}
-				$query->closeCursor();
 			echo '
 			</td>
 		</tr>';

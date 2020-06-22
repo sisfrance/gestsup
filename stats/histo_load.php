@@ -1,26 +1,21 @@
 <?php
 ################################################################################
 # @Name : histo_load.php
-# @Description : Display Statistics by categories
+# @Desc : Display Statistics by catgories
 # @call : /stat.php
 # @parameters : 
 # @Author : Flox
 # @Create : 15/02/2014
-# @Update : 09/10/2019
-# @Version : 3.1.45
+# @Update : 13/03/2014
+# @Version : 3.0.7
 ################################################################################
 
-//array declaration
 $values = array();
 $xnom = array();
-//count
-$qry=$db->prepare("SELECT COUNT(id) FROM `tincidents`");
-$qry->execute();
-$rtotal=$qry->fetch();
-$qry->closeCursor();
-
-$libchart=T_('Charge de travail actuelle par technicien');
-$query = $db->query("
+$qtotal = mysql_query("SELECT count(*) FROM tincidents");
+$rtotal=mysql_fetch_array($qtotal);
+$libchart="Charge de travail actuelle par technicien";
+$query = mysql_query("
 	SELECT CONCAT_WS('. ', left(tusers.firstname, 1),  tusers.lastname) as Technicien, ROUND((SUM(tincidents.time_hope-tincidents.time))/60) as Charge
 	FROM
 	tincidents 
@@ -29,16 +24,14 @@ $query = $db->query("
 	(tincidents.technician=tusers.id ) WHERE 
 	tusers.disable='0' AND
 	tincidents.disable='0' AND
-	tincidents.u_service LIKE '$_POST[service]' $where_service $where_agency AND
-	$where_state AND
 	tincidents.time_hope-tincidents.time>0 AND
 	(tincidents.state='1' OR tincidents.state='2' OR tincidents.state='6')
 	GROUP BY tusers.firstname ORDER BY Charge DESC
 ");
-while ($row = $query->fetch()) 
+while ($row=mysql_fetch_array($query)) 
 {
 	$r=$row[1];
-	$name=addslashes(substr($row[0],0,42));
+	$name=substr($row[0],0,42);
 	array_push($values, $r);
 	array_push($xnom, $name);
 } 

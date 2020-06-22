@@ -1,13 +1,12 @@
 <?php
 ################################################################################
 # @Name : backup.php
-# @Description : save and restore page
-# @Call : /admin/admin.php
-# @Parameters : 
-# @Author : Flox
-# @Create : 25/04/2013
-# @Update : 06/08/2019
-# @Version : 3.1.44
+# @Desc : save and restore page
+# @call : /admin/admin.php
+# @paramters : 
+# @Autor : Flox
+# @Update : 13/03/2014
+# @Version : 3.0.7
 ################################################################################
 
 //initialize variables 
@@ -22,24 +21,12 @@ if(!isset($_GET['action'])) $_GET['action'] = '';
 //date
 $date = date("Y_m_d_H_i_s");
 
-if ($_GET['action']=="backup" && $rright['admin']!=0 && $rright['admin_backup']!=0)
+if ($_GET['action']=="backup")
 {
 	//dump SQL
+	require('./core/mysqldump.php');
 	$file = "./_SQL/backup-gestsup-$rparameters[version]-$date.sql";
-	include_once("./components/mysqldump-php/src/Ifsnop/Mysqldump/Mysqldump.php");
-	if(!isset($port)) {
-		//get current port
-		$qry=$db->prepare("SHOW VARIABLES WHERE Variable_name = 'port'");
-		$qry->execute();
-		$variable=$qry->fetch();
-		$qry->closeCursor();
-		$detected_port=$variable[1];
-		
-		$dump = new Ifsnop\Mysqldump\Mysqldump("mysql:host=$host;port=$detected_port;dbname=$db_name;charset=$charset","$user", "$password");
-	} else {
-		$dump = new Ifsnop\Mysqldump\Mysqldump("mysql:host=$host;port=$port;dbname=$db_name;charset=$charset","$user", "$password");
-	}
-	$dump->start($file);
+	dumpMySQL("$serveur", "$user", "$password", "$base", 3, "$file");
 	
 	//backup files
 	function Zip($source, $destination)
@@ -89,14 +76,8 @@ if ($_GET['action']=="backup" && $rright['admin']!=0 && $rright['admin_backup']!
 		return $zip->close();
 	}
 	Zip('./', './backup/backup_gestsup_'.$rparameters['version'].'_'.$date.'.zip');	
-	
-	//check SQL dump
-	$check_sql_dump=0;
-	$pattern='./_SQL/backup-gestsup-'.$rparameters['version'].'-'.date('Y').'_'.date('m').'_'.date('d').'_*.sql';
-	foreach (glob($pattern) as $filename) {$check_sql_dump=1;}
-	
 	//check backup
-	if(file_exists('./backup/backup_gestsup_'.$rparameters['version'].'_'.$date.'.zip') && $check_sql_dump==1) 
+	if(file_exists('./backup/backup_gestsup_'.$rparameters['version'].'_'.$date.'.zip')) 
 	{
 		echo'
 			<div class="alert alert-block alert-success">
@@ -104,41 +85,24 @@ if ($_GET['action']=="backup" && $rright['admin']!=0 && $rright['admin_backup']!
 					<i class="icon-remove"></i>
 				</button>
 				<i class="icon-ok green"></i>
-				'.T_('La sauvegarde à été réalisée avec succès, une copie de l\'archive se trouve dans le répertoire ./backup de votre serveur web').'.
+				La sauvegarde à été réalisée avec succès, une copie de l\'archive se trouve dans le répertoire ./backup de votre serveur web.
 			</div>
 		';
 		$step=5;
 	} else {
-		if(!file_exists('./backup/backup_gestsup_'.$rparameters['version'].'_'.$date.'.zip'))
-		{
-			echo'
-			<div class="alert alert-danger">
-				<button type="button" class="close" data-dismiss="alert">
-					<i class="icon-remove"></i>
-				</button>
-				<strong>
-					<i class="icon-remove"></i>
-					'.T_('Erreur').'
-				</strong>
-				'.T_('La sauvegarde de l\'application à échoué (Aucun fichier zip détecté dans ./backup)').'.
-				<br>
-			</div>
-			';
-		} elseif($check_sql_dump==0) {
-			echo'
-			<div class="alert alert-danger">
-				<button type="button" class="close" data-dismiss="alert">
-					<i class="icon-remove"></i>
-				</button>
-				<strong>
-					<i class="icon-remove"></i>
-					'.T_('Erreur').'
-				</strong>
-				'.T_('La sauvegarde de la base de données de l\'application à échoué (Aucun fichier SQL détecté dans ./_SQL)').'.
-				<br>
-			</div>
-			';
-		}
+		echo'
+		<div class="alert alert-danger">
+			<button type="button" class="close" data-dismiss="alert">
+				<i class="icon-remove"></i>
+			</button>
+			<strong>
+				<i class="icon-remove"></i>
+				Erreur
+			</strong>
+			La sauvegarde de l\'application à échoué.
+			<br>
+		</div>
+		';
 		$error=1;
 	}
 
@@ -149,6 +113,7 @@ if ($_GET['action']=="backup" && $rright['admin']!=0 && $rright['admin_backup']!
 		document.location.replace("'.$www.'");
 		// -->
 		</script>';
+	
 }
 if($_POST['upload'])
 {
@@ -158,12 +123,16 @@ if($_POST['upload'])
 ?>
 <div class="page-header position-relative">
 	<h1>
-		<i class="icon-save"></i>  <?php echo T_('Sauvegardes de GestSup'); ?>
+		<i class="icon-save"></i>  Sauvegardes de GestSup
 	</h1>
 </div>
 <center>
 	<button onclick='window.location.href="./index.php?page=admin&subpage=backup&action=backup"' type="submit" class="btn btn-primary">
 		<i class="icon-download bigger-140"></i>
-		<?php echo T_('Lancer la sauvegarde'); ?>
+		Lancer la sauvegarde
 	</button>
+	<!--<button onclick='window.open("/phpmyadmin/index.php?db=<?php echo $base; ?>")' type="submit" class="btn btn-primary">
+		<i class="icon-cog bigger-140"></i>
+		Administrer la base de donnée
+	</button>-->
 </center>

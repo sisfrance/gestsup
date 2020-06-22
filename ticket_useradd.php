@@ -1,47 +1,38 @@
 <?php
 ################################################################################
-# @Name : ticket_useradd.php
-# @Description : dd and modify user
-# @Call : ./ticket.php
-# @Parameters :  
+# @Name : newticket_useradd.php
+# @Desc : dd and modify user
+# @call : ./ticket.php
+# @parameters :  
 # @Author : Flox
-# @Create : 07/03/2014
-# @Update : 24/10/2018
-# @Version : 3.1.36
+# @Update : 07/03/2014
+# @Version : 3.0.8
 ################################################################################
 
 //initialize variables 
-if(!isset($_GET['id'])) $_GET['id'] = ''; 
-if(!isset($_GET['edituserid'])) $_GET['edituserid'] = ''; 
+if(!isset($_GET ['id'])) $_GET['id'] = ''; 
+if(!isset($_GET ['edituserid'])) $_GET['edituserid'] = ''; 
 if(!isset($_POST['adduser'])) $_POST['adduser'] = ''; 
 if(!isset($_POST['add'])) $_POST['add'] = ''; 
 if(!isset($_POST['modifyuser'])) $_POST['modifyuser'] = ''; 
 if(!isset($_POST['firstname'])) $_POST['firstname'] = ''; 
 if(!isset($_POST['lastname'])) $_POST['lastname'] = ''; 
-if(!isset($_POST['phone'])) $_POST['phone'] = ''; 
-if(!isset($_POST['mobile'])) $_POST['mobile'] = ''; 
 if(!isset($_POST['usermail'])) $_POST['usermail'] = ''; 
 if(!isset($_POST['company'])) $_POST['company'] = ''; 
 
-//secure text string and remove special char
+//special char rename
+$_POST['firstname'] = mysql_real_escape_string($_POST['firstname']);
+$_POST['lastname'] = mysql_real_escape_string($_POST['lastname']);
+
+//secure code injection
 $_POST['firstname']=strip_tags($_POST['firstname']);
 $_POST['lastname']=strip_tags($_POST['lastname']);
-$_POST['phone']=strip_tags($_POST['phone']);
-$_POST['mobile']=strip_tags($_POST['mobile']);
-$_POST['usermail']=strip_tags($_POST['usermail']);
-$_POST['company']=strip_tags($_POST['company']);
 
-if($_POST['add'] && $rright['ticket_user_actions']!=0) //add user
+//submit actions
+if($_POST['add'])
 {
-	$qry=$db->prepare("INSERT INTO `tusers` (`profile`,`firstname`,`lastname`,`phone`,`mobile`,`mail`,`company`) VALUES (2,:firstname,:lastname,:phone,:mobile,:mail,:company)");
-	$qry->execute(array(
-		'firstname' => $_POST['firstname'],
-		'lastname' => $_POST['lastname'],
-		'phone' => $_POST['phone'],
-		'mobile' => $_POST['mobile'],
-		'mail' => $_POST['usermail'],
-		'company' => $_POST['company']
-		));
+	$requete = "INSERT INTO tusers (profile,firstname,lastname,phone,mail,company) VALUES ('2','$_POST[firstname]','$_POST[lastname]','$_POST[phone]','$_POST[usermail]','$_POST[company]')";
+	$execution = mysql_query($requete);
 	//redirect
 	$www = "./index.php?page=ticket&id=$_GET[id]&userid=$_GET[userid]";
 	echo '<script language="Javascript">
@@ -50,28 +41,12 @@ if($_POST['add'] && $rright['ticket_user_actions']!=0) //add user
 	// -->
 	</script>';
 
-}elseif($_POST['modifyuser'] && $rright['ticket_user_actions']!=0) //modify user
+}
+if($_POST['modifyuser'])
 {
-	$qry=$db->prepare("
-	UPDATE `tusers` SET
-	`firstname`=:firstname, 
-	`lastname`=:lastname, 
-	`phone`=:phone, 
-	`mobile`=:mobile, 
-	`mail`=:mail, 
-	`company`=:company
-	WHERE `id`=:id
-	");
-	$qry->execute(array(
-		'firstname' => $_POST['firstname'],
-		'lastname' => $_POST['lastname'],
-		'phone' => $_POST['phone'],
-		'mobile' => $_POST['mobile'],
-		'mail' => $_POST['usermail'],
-		'company' => $_POST['company'],
-		'id' => $_GET['edituser']
-		));
-
+	$requete = "UPDATE tusers SET lastname='$_POST[lastname]', phone='$_POST[phone]', mail='$_POST[usermail]', firstname='$_POST[firstname]', company='$_POST[company]' where id like '$_GET[edituser]'";
+	$execution = mysql_query($requete);
+	
 	//redirect
 	$www = "./index.php?page=ticket&id=$_GET[id]&userid=$_GET[userid]";
 	echo '<script language="Javascript">
@@ -81,136 +56,89 @@ if($_POST['add'] && $rright['ticket_user_actions']!=0) //add user
 	</script>';
 }
 //case for create new user
-if ($_GET['action']=="adduser" && $rright['ticket_user_actions']!=0)
+if ($_GET['action']=="adduser")
 {
-	$boxtitle='<i class=\'icon-user blue bigger-120\'></i> '.T_('Ajouter un nouvel utilisateur');
-	$boxtext= '
-	<form name="form" method="POST" action="" id="form">
-		<input  name="add" type="hidden" value="1">
-		<label for="firstname">'.T_('Prénom').':</label> 
-		<input name="firstname" type="text" size="26">
+	$boxtitle="<i class='icon-user blue bigger-120'></i> Ajouter un nouvel utilisateur";
+	$boxtext= "
+	<form name=\"form\" method=\"POST\" action=\"\" id=\"form\">
+		<input  name=\"add\" type=\"hidden\" value=\"1\">
+		<label >Prénom:</label> 
+		<input  name=\"firstname\" type=\"text\" size=\"26\">
 		<br />
-		<label for="lastname">'.T_('Nom').':</label> 
-		<input name="lastname" type="text" size="26">
+		<label for=\"name\">Nom:</label> 
+		<input  name=\"lastname\" type=\"text\" size=\"26\">
 		<br />
-		<label for="phone">'.T_('Tel. fixe').':</label> 
+		<label for=\"phone\">Tel:</label> 
+		<input  name=\"phone\" type=\"text\" size=\"26\">
 		<br />
-		<input name="phone" type="text" size="26">
-		<br />
-		<label for="mobile">'.T_('Tel. portable').':</label> 
-		<br />
-		<input name="mobile" type="text" size="26">
-		<br />
-		<label for="usermail">'.T_('Mail').':</label> 
-		<br />
-		<input name="usermail" type="text" value="" size="26">';
+		<label for=\"usermail\">Mail:</label> 
+		<input  name=\"usermail\" type=\"text\" value=\"\" size=\"26\">";
 		//display advanced user informations
 		if ($rparameters['user_advanced']!=0)
 		{
-		    $boxtext=$boxtext.'
-		    <label for="company">'.T_('Société').':</label><br />
-		    <select id="company" style="width:200px;" name="company">';
-			
-			$qry=$db->prepare("SELECT `id`,`name` FROM `tcompany` ORDER BY name ASC");
-			$qry->execute();
-			while($row=$qry->fetch()) 
-			{
-				//translate none state
-				if ($row['id']==0)
-				{
-					$boxtext.='<option value="'.$row['id'].'">'.T_($row['name']).'</option>';
-				} else {
-					$boxtext.='<option value="'.$row['id'].'">'.$row['name'].'</option>';
-				}
-			}
-			$qry->closeCursor();
-    	  
-			$boxtext= $boxtext.'
-			</select>
-            <a target="blank" href="./index.php?page=admin&subpage=list&table=tcompany&action=disp_add"> <i class="icon-plus-sign green bigger-130" title="'.T_('Ajouter une société').'" ></i></a>';
+		    $boxtext=$boxtext."
+		    <label for=\"company\">Société:</label><br />
+		    <select id=\"company\" name=\"company\">";
+    	    $qcompany= mysql_query("SELECT * FROM `tcompany` ORDER BY name ASC");
+			while ($rcompany=mysql_fetch_array($qcompany)) {$boxtext= $boxtext.'<option value="'.$rcompany['id'].'">'.$rcompany['name'].'</option>';} 
+        	$boxtext= $boxtext.'</select>
+            <a target="blank" href="./index.php?page=admin&subpage=list&table=tcompany&action=disp_add"> <i class="icon-plus-sign green bigger-130" title="Ajouter une société" ></i></a>
+        	';
 		}
-		$boxtext=$boxtext.'
+		$boxtext=$boxtext."
 		<br /><br />
-		<a target="blank" href="./index.php?page=admin&subpage=user&action=add">'.T_('Plus de champs').'...</a>
+		<a target=\"blank\" href=\"./index.php?page=admin&subpage=user&action=add\">Plus de champs...</a>
 		<br />		
 	</form>
-	';
-	$valid=T_('Ajouter');
+	";
+	$valid="Ajouter";
 	$action1="$('form#form').submit();";
-	$cancel=T_('Fermer');
+	$cancel="Fermer";
 	$action2="$( this ).dialog( \"close\" ); ";
 }
-elseif($rright['ticket_user_actions']!=0) //case for modify an existing user
+else
 {
-	$boxtitle='<i class=\'icon-user blue bigger-120\'></i> '.T_('Modification d\'un utilisateur');
-	//get user data
-	$qry=$db->prepare("SELECT `firstname`,`lastname`,`phone`,`mobile`,`mail`,`company` FROM `tusers` WHERE id=:id");
-	$qry->execute(array('id' => $_GET['edituser']));
-	$row=$qry->fetch();
-	$qry->closeCursor();
-	
-	$boxtext= '
-	<form name="form" method="POST" action="" id="form">
-		<input  name="modifyuser" type="hidden" value="1">
-		<label>'.T_('Prénom').':</label> 
-		<input name="firstname" type="text" size="26" value="'.$row['firstname'].'">
+	$boxtitle="<i class='icon-user blue bigger-120'></i> Modification d'un utilisateur";
+	$query = mysql_query("SELECT * FROM tusers WHERE id LIKE '$_GET[edituser]'");
+	$row=mysql_fetch_array($query);
+	$boxtext= "
+	<form name=\"form\" method=\"POST\" action=\"\" id=\"form\">
+		<input  name=\"modifyuser\" type=\"hidden\" value=\"1\">
+		<label>Prénom:</label> 
+		<input  name=\"firstname\" type=\"text\" size=\"26\" value=\"$row[firstname]\">
 		<br />
-		<label>'.T_('Nom').':</label> 
-		<input name="lastname" type="text" size="26" value="'.$row['lastname'].'">
+		<label>Nom:</label> 
+		<input  name=\"lastname\" type=\"text\" size=\"26\" value=\"$row[lastname]\">
 		<br />
-		<label>'.T_('Tel. fixe').':</label> 
+		<label>Tel:</label> 
+		<input  name=\"phone\" type=\"text\" size=\"26\" value=\"$row[phone]\">
 		<br />
-		<input name="phone" type="text" size="26" value="'.$row['phone'].'">
-		<br />
-		<label>'.T_('Tel. mobile').':</label> 
-		<br />
-		<input name="mobile" type="text" size="26" value="'.$row['mobile'].'">
-		<br />
-		<label>'.T_('Mail').':</label> 
-		<br />
-		<input name="usermail" type="text" size="26" value="'.$row['mail'].'" >
-		';
+		<label>Mail:</label> 
+		<input  name=\"usermail\" type=\"text\" size=\"26\" value=\"$row[mail]\" >";
 		//display advanced user informations
 		if ($rparameters['user_advanced']!=0)
 		{
-		    $boxtext=$boxtext.'
-		    <label for="company">'.T_('Société').':</label><br />
-		    <select id="company" style="width:200px;" name="company">';
-			
-			$qry2=$db->prepare("SELECT `id`,`name` FROM `tcompany` ORDER BY name ASC");
-			$qry2->execute();
-			while($row2=$qry2->fetch()) 
-			{
-				$qry3=$db->prepare("SELECT `id` FROM `tcompany` WHERE id LIKE :id");
-				$qry3->execute(array('id' => $row['company']));
-				$row3=$qry3->fetch();
-				$qry3->closeCursor();
-				
-				if ($row3['id']==$row2['id']) {$selected='selected';} else {$selected='';}
-				//translate non state
-				if ($row2['id']==0)
-				{
-					$boxtext.='<option value="'.$row2['id'].'" '.$selected.'>'.T_($row2['name']).'</option>';
-				} else {
-					$boxtext.='<option value="'.$row2['id'].'" '.$selected.'>'.$row2['name'].'</option>';
-				}
-			}
-			$qry2->closeCursor();
-    	   
+		    $boxtext=$boxtext."
+		    <label for=\"company\">Société:</label><br />
+		    <select id=\"company\" name=\"company\">";
+    	    $qcompany= mysql_query("SELECT * FROM `tcompany` ORDER BY name ASC");
+			while ($rcompany=mysql_fetch_array($qcompany)) {$boxtext= $boxtext.'<option value="'.$rcompany['id'].'">'.$rcompany['name'].'</option>';} 
+			$query= mysql_query("SELECT * FROM `tcompany` WHERE id like '$row[company]'");
+			$row=mysql_fetch_array($query);	
+			$boxtext= $boxtext."<option value=\"$row[id]\" selected>$row[name]</option>";
         	$boxtext= $boxtext.'</select>
-        	<a target="blank" href="./index.php?page=admin&subpage=list&table=tcompany&action=disp_add"> <i class="icon-plus-sign green bigger-130" title="'.T_('Ajouter une société').'" ></i></a>
+        	<a target="blank" href="./index.php?page=admin&subpage=list&table=tcompany&action=disp_add"> <i class="icon-plus-sign green bigger-130" title="Ajouter une société" ></i></a>
             ';
 		}
-		$boxtext=$boxtext.'
+		$boxtext=$boxtext."
 		<br /><br />
-		<a target="blank" href="./index.php?page=admin&subpage=user&action=edit&userid='.$_GET['edituser'].'">'.T_('Plus de champs').'...</a>
+		<a target=\"blank\" href=\"./index.php?page=admin&subpage=user&action=edit&id=$_GET[edituser]\">Plus de champs...</a>
 		<br />		
 	</form>
-	';
-	$valid=T_('Modifier');
-	$action1="$('form#form').submit();
-	$( this ).dialog( \"close\" );";
-	$cancel=T_('Fermer');
+	";
+	$valid="Modifier";
+	$action1="$('form#form').submit();";
+	$cancel="Fermer";
 	$action2="$( this ).dialog( \"close\" ); ";
 }
 include "./modalbox.php"; 

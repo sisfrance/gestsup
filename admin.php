@@ -1,13 +1,13 @@
 <?php
 ################################################################################
 # @Name : admin.php
-# @Description : admin parent page check right to admin part
-# @Call : /index.php
-# @Parameters : 
-# @Author : Flox
+# @Desc : admin parent page
+# @call : /index.php
+# @paramters : 
+# @Autor : Flox
 # @Create : 12/01/2011
-# @Update : 09/10/2019
-# @Version : 3.1.45
+# @Update : 12/08/2013
+# @Version : 2.9
 ################################################################################
 
 // initialize variables 
@@ -17,13 +17,14 @@ if(!isset($_GET['profileid'])) $_GET['profileid'] = '';
 //default settings
 if ($_GET['subpage']=='') $_GET['subpage']='user';
 if ($_GET['subpage']=='user')
-if ($_GET['profileid']=='') if($_GET['subpage']=='user') $_GET['profileid'] = '%';
+if ($_GET['profileid']=='') if ($_GET['subpage']=='user') $_GET['profileid'] = '%';
 if ($_GET['subpage']=='profile' && $_GET['profileid']=='') $_GET['profileid']=0;
 
 //check rights for admin page
-if($rright['admin']!=0){include ('./admin/'.$_GET['subpage'].'.php');}
-elseif ($rright['admin_groups']!=0 && $_GET['subpage']=='group'){include ('./admin/'.$_GET['subpage'].'.php');}
-elseif ($rright['admin_lists']!=0 && $_GET['subpage']=='list') {include ('./admin/'.$_GET['subpage'].'.php');}
-elseif ($rright['admin_user_view']!=0 && $_GET['subpage']=='user') {include ('./admin/'.$_GET['subpage'].'.php');} //case to allow superuser to delete personal views
-else {echo '<div class="alert alert-danger"><strong><i class="icon-remove"></i>'.T_('Erreur').':</strong> '.T_("Vous n'avez pas accès au menu administration, contacter votre administrateur").'.<br /></div>';}
+if ($rright['admin']!=0)
+{
+	include ('./admin/'.$_GET['subpage'].'.php');
+} else {
+	echo '<div class="alert alert-danger"><strong><i class="icon-remove"></i>Erreur:</strong> Vous n\'avez pas acc&egrave;s &agrave; cette page, contacter votre administrateur.<br></div>';
+}
 ?>

@@ -1,369 +1,285 @@
-﻿<?php
-################################################################################
-# @Name : ticket_print.php 
-# @Description : page to print ticket
-# @Call : /ticket.php
-# @Author : Flox
-# @Version : 3.1.43
-# @Create : 09/02/2014
-# @Update : 31/07/2019
-################################################################################
-
-//initialize variables 
-if(!isset($_GET['token'])) $_GET['token'] = ''; 
-if(!isset($_COOKIE["token"])) $_COOKIE["token"] = ''; 
-if(!isset($resolution)) $resolution = '';
-//connexion script with database parameters
+<?php
+session_start();
 require "connect.php";
-
-//switch SQL MODE to allow empty values with lastest version of MySQL
-$db->exec('SET sql_mode = ""');
-
-//get userid to find language
-$_SESSION['user_id']=$_GET['user_id'];
-
-$db_id=strip_tags($db->quote($_GET['id']));
-$db_session_user_id=strip_tags($_GET['user_id']);
-
-//load user table
-$qry=$db->prepare("SELECT * FROM tusers WHERE id=:id");
-$qry->execute(array('id' => $_GET['user_id']));
-$ruser=$qry->fetch();
-$qry->closeCursor();
-
-//load parameter table
-$qry=$db->prepare("SELECT * FROM tparameters");
-$qry->execute();
-$rparameters=$qry->fetch();
-$qry->closeCursor();
-
-//define current language
-require "localization.php";
-
-//initialize variables 
-if(!isset($userreg)) $userreg = ''; 
-if(!isset($u_group)) $u_group = ''; 
-if(!isset($globalrow['u_group'])) $globalrow['u_group'] = ''; 
-if(!isset($_POST['user'])) $_POST['user'] = ''; 
-if(!isset($_POST['technician'])) $_POST['technician'] = ''; 
-if(!isset($rtechgroup4['name'])) $rtechgroup4['name'] = ''; 
-if(!isset($rtech5['firstname'])) $rtech5['firstname'] = ''; 
-if(!isset($rtech5['lastname'])) $rtech5['lastname'] = ''; 
-
-//master query
-$qry=$db->prepare("SELECT * FROM `tincidents` WHERE id=:id");
-$qry->execute(array('id' => $_GET['id']));
-$globalrow=$qry->fetch();
-$qry->closeCursor();
-
-//secure connect
-if($_GET['token'] && $_GET['token']==$_COOKIE["token"])
-{
-	//database queries to find values for create print
-	$qry=$db->prepare("SELECT * FROM `tusers` WHERE id=:id");
-	$qry->execute(array('id' => $globalrow['user']));
-	$userrow=$qry->fetch();
-	$qry->closeCursor();
-		
-	$qry=$db->prepare("SELECT * FROM `tusers` WHERE id=:id");
-	$qry->execute(array('id' => $globalrow['technician']));
-	$techrow=$qry->fetch();
-	$qry->closeCursor();
-
-	if ($globalrow['t_group']!=0)
-	{
-		$qry=$db->prepare("SELECT name FROM `tgroups` WHERE id=:id");
-		$qry->execute(array('id' => $globalrow['t_group']));
-		$grouptech=$qry->fetch();
-		$qry->closeCursor();
-	}
-
-	if ($globalrow['u_group']!=0)
-	{
-		$qry=$db->prepare("SELECT name FROM `tgroups` WHERE id=:id");
-		$qry->execute(array('id' => $globalrow['u_group']));
-		$groupuser=$qry->fetch();
-		$qry->closeCursor();
-	}
-
-	$qry=$db->prepare("SELECT name FROM `tstates` WHERE id=:id");
-	$qry->execute(array('id' => $globalrow['state']));
-	$staterow=$qry->fetch();
-	$qry->closeCursor();
-		
-	$qry=$db->prepare("SELECT name FROM `tcategory` WHERE id=:id");
-	$qry->execute(array('id' => $globalrow['category']));
-	$catrow=$qry->fetch();
-	$qry->closeCursor();
-		
-	$qry=$db->prepare("SELECT name FROM `tsubcat` WHERE id=:id");
-	$qry->execute(array('id' => $globalrow['subcat']));
-	$subcatrow=$qry->fetch();
-	$qry->closeCursor();
 	
-	if ($rparameters['ticket_places']==1)
-	{
-		$qry=$db->prepare("SELECT `id`,`name` FROM `tplaces` WHERE id=:id");
-		$qry->execute(array('id' => $globalrow['place']));
-		$placerow=$qry->fetch();
-		$qry->closeCursor();
-		
-		if($placerow['id']!=0)
-		{
-			$place='
-			<tr>
-				<td colspan="2"><font color="'.$rparameters['mail_color_text'].'"><b>'.T_('Lieu').':</b> '.$placerow['name'].'</font></td>
-			</tr>
-			';
-		} else {$place='';}
-	} else {$place='';}
+	mysql_query("SET NAMES 'utf8'");
+	setlocale(LC_TIME, "fr_FR");
 
-	//generate resolution
-	if($rparameters['mail_order']==1)
-	{
-		$qry=$db->prepare("SELECT date,type,text,author,group1,group2,tech1,tech2,state FROM `tthreads` WHERE ticket=:ticket AND private='0' ORDER BY date DESC");
-		$qry->execute(array('ticket' => $_GET['id']));
+	//initialize variables 
+	if(!isset($userreg)) $userreg = ''; 
+	if(!isset($u_group)) $u_group = ''; 
+	if(!isset($globalrow['u_group'])) $globalrow['u_group'] = ''; 
+	if(!isset($_POST['user'])) $_POST['user'] = ''; 
+	if(!isset($_POST['technician'])) $_POST['technician'] = '';
+	if(!isset($_GET['action'])) $_GET['action'] = '';
+	
+	if (!isset($_SESSION['profile_id'])) {
+		if($_GET['action'] != "print") {
+			header('Location: index.php?action=print&id='.$_GET['id']);
+		}
 	} else {
-		$qry=$db->prepare("SELECT date,type,text,author,group1,group2,tech1,tech2,state FROM `tthreads` WHERE ticket=:ticket AND private='0' ORDER BY date ASC");
-		$qry->execute(array('ticket' => $_GET['id']));
-	}
-	while($row = $qry->fetch())
-	{
-		//remove display date from old post 
-		$find_old=explode(" ", $row['date']);
-		$find_old=$find_old[1];
-		if ($find_old!='12:00:00') $date_thread=date_convert($row['date']); else  $date_thread='';
-			
-		if($row['type']==0)
-		{
-			//text back-line format
-			$text=nl2br($row['text']);
-			
-			//test if author is not the technician
-			if ($row['author']!=$globalrow['technician'])
-			{
-				//find author name
-				$qry2=$db->prepare("SELECT `firstname`,`lastname` FROM `tusers` WHERE id=:id");
-				$qry2->execute(array('id' => $row['author']));
-				$rauthor=$qry2->fetch();
-				$qry2->closeCursor();
-				
-				$resolution="$resolution <b> $date_thread $rauthor[firstname] $rauthor[lastname]: </b><br /> $text  <hr />";
-			} else {
-				if ($date_thread!='')
-				{
-					$resolution="$resolution <b>$date_thread:</b><br />$text<hr />";
-				} else {
-					$resolution="$resolution  $text <hr />";
-				}
-			}
-		} 
-		if ($row['type']==1)
-		{
-			//generate attribution thread
-			if ($row['group1']!=0)
-			{
-			
-				$qry2=$db->prepare("SELECT `name` FROM `tgroups` WHERE id=:id");
-				$qry2->execute(array('id' => $row['group1']));
-				$rtechgroup=$qry2->fetch();
-				$qry2->closeCursor();
-				
-				$resolution=$resolution.' <b>'.$date_thread.':</b> '.T_('Attribution du ticket au groupe').' '.$rtechgroup['name'].'.<br /><br />';
-			} else {
-				$qry2=$db->prepare("SELECT `firstname`,`lastname` FROM `tusers` WHERE id=:id");
-				$qry2->execute(array('id' => $row['tech1']));
-				$rtech3=$qry2->fetch();
-				$qry2->closeCursor();
-				
-				$resolution=$resolution.' <b>'.$date_thread.':</b> '.T_('Attribution du ticket à').' '.$rtech3['firstname'].' '.$rtech3['lastname'].'.<br /><br />';
-			}
-		}
-		if ($row['type']==4)
-		{
-			//find author name
-			$qry2=$db->prepare("SELECT `firstname`,`lastname` FROM `tusers` WHERE id=:id");
-			$qry2->execute(array('id' => $row['author']));
-			$rauthor=$qry2->fetch();
-			$qry2->closeCursor();
-			
-			$resolution=$resolution.' <b>'.$date_thread.':</b> '.T_('Clôture du ticket').' par '.$rauthor['firstname'].' '.$rauthor['lastname'].'.<br /><br />';
-		}
-		if ($row['type']==5 && $row['state']==2)
-		{
-			//find author name
-			$qry2=$db->prepare("SELECT `firstname`,`lastname` FROM `tusers` WHERE id=:id");
-			$qry2->execute(array('id' => $row['author']));
-			$rauthor=$qry2->fetch();
-			$qry2->closeCursor();
-			
-			$resolution=$resolution.' <b>'.$date_thread.':</b> '.T_("Changement d'état en cours").' par '.$rauthor['firstname'].' '.$rauthor['lastname'].'.<br /><br />';
-		}
-		if ($row['type']==6)
-		{
-			//find author name
-			$qry2=$db->prepare("SELECT `firstname`,`lastname` FROM `tusers` WHERE id=:id");
-			$qry2->execute(array('id' => $row['author']));
-			$rauthor=$qry2->fetch();
-			$qry2->closeCursor();
-			
-			$resolution=$resolution.' <b>'.$date_thread.':</b> '.T_('Ticket facturable').' par '.$rauthor['firstname'].' '.$rauthor['lastname'].'.<br /><br />';
-		}
-		if ($row['type']==7)
-		{
-			//find author name
-			$qry2=$db->prepare("SELECT `firstname`,`lastname` FROM `tusers` WHERE id=:id");
-			$qry2->execute(array('id' => $row['author']));
-			$rauthor=$qry2->fetch();
-			$qry2->closeCursor();
-			
-			$resolution=$resolution.' <b>'.$date_thread.':</b> '.T_('Ticket non facturable').' par '.$rauthor['firstname'].' '.$rauthor['lastname'].'.<br /><br />';
-		}
-		if($row['type']==2)
-		{
-			//generate transfert thread
-			if ($row['group1']!=0 && $row['group2']!=0) //case group to group 
-			{
-				$qry2=$db->prepare("SELECT `name` FROM `tgroups` WHERE id=:id");
-				$qry2->execute(array('id' => $row['group1']));
-				$rtechgroup1=$qry2->fetch();
-				$qry2->closeCursor();
-				
-				$qry2=$db->prepare("SELECT `name` FROM `tgroups` WHERE id=:id");
-				$qry2->execute(array('id' => $row['group2']));
-				$rtechgroup2=$qry2->fetch();
-				$qry2->closeCursor();
-				
-				$resolution=$resolution.' <b>'.$date_thread.':</b> '.T_('Transfert du ticket du groupe').' '.$rtechgroup1['name'].' '.T_('au groupe ').' '.$rtechgroup2['name'].'. <br /><br />';
-			} elseif(($row['tech1']==0 || $row['tech2']==0) && ($row['group1']==0 || $row['group2']==0)) { //case group to tech
-				if ($row['tech1']!=0) {
-					$qry2=$db->prepare("SELECT `firstname`,`lastname` FROM `tusers` WHERE id=:id");
-					$qry2->execute(array('id' => $row['tech1']));
-					$rtech4=$qry2->fetch();
-					$qry2->closeCursor();
-				} else {$rtech4['firstname']='';$rtech4['lastname']='';}
-				if ($row['tech2']!=0) {
-					$qry2=$db->prepare("SELECT `firstname`,`lastname` FROM `tusers` WHERE id=:id");
-					$qry2->execute(array('id' => $row['tech2']));
-					$rtech5=$qry2->fetch();
-					$qry2->closeCursor();
-				} else {$rtech5['firstname']='';$rtech5['lastname']='';}
-				if ($row['group1']!=0) {
-					$qry2=$db->prepare("SELECT `name` FROM `tgroups` WHERE id=:id");
-					$qry2->execute(array('id' => $row['group1']));
-					$rtechgroup4=$qry2->fetch();
-					$qry2->closeCursor();
-				} else {$rtechgroup4['name']='';}
-				if ($row['group2']!=0) {
-					$qry2=$db->prepare("SELECT `name` FROM `tgroups` WHERE id=:id");
-					$qry2->execute(array('id' => $row['group2']));
-					$rtechgroup5=$qry2->fetch();
-					$qry2->closeCursor();
-				} else {$rtechgroup5['name']='';}
-				$resolution=$resolution.' <b>'.$date_thread.':</b> '.T_('Transfert du ticket de').' '.$rtechgroup4['name'].$rtech4['firstname'].' '.$rtech4['lastname'].' '.T_('à ').' '.$rtechgroup5['name'].$rtech5['firstname'].' '.$rtech5['lastname'].'. <br /><br />';
-		}elseif($row['tech1']!=0 && $row['tech2']!=0) { //case tech to tech
-				$qry2=$db->prepare("SELECT `firstname`,`lastname` FROM `tusers` WHERE id=:id");
-				$qry2->execute(array('id' => $row['tech1']));
-				$rtech1=$qry2->fetch();
-				$qry2->closeCursor();
-				
-				$qry2=$db->prepare("SELECT `firstname`,`lastname` FROM `tusers` WHERE id=:id");
-				$qry2->execute(array('id' => $row['tech2']));
-				$rtech2=$qry2->fetch();
-				$qry2->closeCursor();
-				
-				$resolution=$resolution.' <b>'.$date_thread.':</b> '.T_('Transfert du ticket de').' '.$rtech1['firstname'].' '.$rtech1['lastname'].' à '.$rtech2['firstname'].' '.$rtech2['lastname'].'. <br /><br />';
-			}
-		}
-	}	
-	$qry->closeCursor();	
-	$description = $globalrow['description'];
-
-	//dates conversions
-	$date_create = date_convert("$globalrow[date_create]");
-	$date_hope = date_convert("$globalrow[date_hope]");
-	$date_res = date_convert("$globalrow[date_res]");
+	//master query
+	$globalquery = mysql_query("
+		SELECT *, tincidents.user AS tid, tincidents.id AS tinid
+		FROM tincidents
+		INNER JOIN tusers ON tusers.id = tincidents.user
+		WHERE tincidents.id LIKE '$_GET[id]'
+	");
+	$globalrow=mysql_fetch_array($globalquery);
+	if($_SESSION['user_id'] == $globalrow['tid'] OR $_SESSION['rank'] <= 3){
 	
-	
-	echo '
+	if($_GET['id'] != $globalrow['tinid']) {
+		echo "<h1>Ce ticket n'existe pas !</h1>";
+		die();
+	};
+		
+	//echo 'Impression du ticket n°'.$_GET['id'].':  '.$globalrow['title'].'';
+	?>
 	<html>
-		<head>
-			<title>Impression du ticket n°'.sprintf("%'.08d\n", $globalrow['id']).'</title>
-			<meta charset="UTF-8" />
-		</head>
-		<body onload="window.print()">
-			<font face="Arial">
-				<table width="800" cellspacing="0" cellpadding="10">
-					<tr bgcolor="'.$rparameters['mail_color_title'].'" >
-						<th>
-							<span style="font-size: large; color: #FFFFFF;"> &nbsp; Ticket n°'.sprintf("%'.08d\n", $globalrow['id']).' &nbsp;</span>
-						</th>
-					</tr>
-					<tr bgcolor="'.$rparameters['mail_color_bg'].'" >
-					  <td>
-						<font color="'.$rparameters['mail_color_text'].'"></font>
-						<table  border="1" bordercolor="'.$rparameters['mail_color_title'].'" cellspacing="0"  cellpadding="5">
-							<tr>
-								<td><font color="'.$rparameters['mail_color_text'].'"><b>'.T_('Titre').':</b></b> '.$globalrow['title'].'</font></td>
-								<td><font color="'.$rparameters['mail_color_text'].'"><b>'.T_('Catégorie').':</b></b> '.$catrow['name'].' - '.$subcatrow['name'].'</font></td>
-							</tr>
-							<tr>
-								';
-								//detect user group  
-								if ($globalrow['u_group']!=0)
-								{echo '<td width="400"><font color="'.$rparameters['mail_color_text'].'"><b>'.T_('Demandeur').':</b></b> '.$groupuser['name'].'</font></td>';}
-								else
-								{echo '<td width="400"><font color="'.$rparameters['mail_color_text'].'"><b>'.T_('Demandeur').':</b></b> '.$userrow['firstname'].' '.$userrow['lastname'].'</font></td>';}
-								//detect technician group  
-								if ($globalrow['t_group']!=0)
-								{echo '<td width="400"><font color="'.$rparameters['mail_color_text'].'"><b>'.T_('Groupe de technicien en charge').':</b> '.$grouptech['name'].'</font></td>';}
-								else
-								{echo '<td width="400"><font color="'.$rparameters['mail_color_text'].'"><b>'.T_('Technicien en charge').':</b> '.$techrow['firstname'].' '.$techrow['lastname'].'</font></td>';}
-								echo '
-							</tr>
-							<tr>
-								<td><font color="'.$rparameters['mail_color_text'].'"><b>'.T_('État').':</b> '.T_($staterow[0]).'</font></td>
-								<td><font color="'.$rparameters['mail_color_text'].'"><b>'.T_('Date de la demande').':</b> '.$date_create.'</font></td>	
-							</tr>
-							'.$place;
-							//invert resolution and description part for antechono case
-							if($rparameters['mail_order']==1)
-							{
-								echo '
-									<tr>
-										<td colspan="2"><font color="'.$rparameters['mail_color_text'].'"><b>'.T_('Résolution').':</b><br />'.$resolution.'</font></td>
-									</tr>
-									<tr>
-										<td colspan="2"><font color="'.$rparameters['mail_color_text'].'"><b>'.T_('Description').':</b> '.$description.'</font></td>
-									</tr>
-								';
-							} else {
-								echo '
-									<tr>
-										<td colspan="2"><font color="'.$rparameters['mail_color_text'].'"><b>'.T_('Description').':</b> '.$description.'</font></td>
-									</tr>
-									<tr>
-										<td colspan="2"><font color="'.$rparameters['mail_color_text'].'"><b>'.T_('Résolution').':</b>'.$resolution.'</font></td>
-									</tr>
-								';
-							}
-							echo '
-							<tr>
-								<td width="400"><font color="'.$rparameters['mail_color_text'].'"><b>'.T_('Date de résolution estimée').':</b></b> '.$date_hope.'</font></td>
-								<td width="400"><font color="'.$rparameters['mail_color_text'].'"><b>'.T_('Date de résolution').':</b> '.$date_res.'</font></td>
-							</tr>
-						</table>
-					  </td>
-					</tr>
-				</table>
-			</font>
-		</body>
-	</html>';
+	<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<title>Impression Ticket n°<?php echo $_GET['id']; ?></title>
+	<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+	<style>
+		p {
+			font-size: 14px;
+		}
+	</style>
+	</head>
+	<body onload="window.print();">
+	<div class="container">
+		<div class="row">
+			<div class="col-md-1"></div>
+			<div class="col-md-10">
+				<img style="position:absolute;top:0;" height="50px" src="Logo.jpg">
+				<p style="font-size:10px" class="text-right"><b>Date d'ouverture:&nbsp;</b>
+					<?php
+						if ($globalrow['date_create']!='0000-00-00')
+						{
+							$resultdatecreate = substr($globalrow['date_create'], 0, 10);
+							echo $resultdatecreate;
+						}
+					?>	
+				</p>
+				<p style="font-size:10px" class="text-right"><b>Date de fermeture:&nbsp;</b>
+					<?php
+						if ($globalrow['date_res']!='0000-00-00')
+						{
+							$resultdatecres = substr($globalrow['date_res'], 0, 10);
+							echo $resultdatecres;
+						}
+					?>	
+				</p>
+				<p style="font-size:10px" class="text-right"><b>Temps passé:&nbsp;</b>
+					<?php
+
+ function convertiii( $lesMinutes )
+ 
+ { 
+ 
+     $heures = floor( $lesMinutes / 60 );
+ 
+     $minutes = $lesMinutes % 60 ;
+
+     if(empty($minutes)) {
+
+     	return( $heures . "H");
+
+     } else {
+
+     	return( $heures . "H " . $minutes . "mn" );
+
+     }
+ 
+ }
+
+echo convertiii($globalrow['time']);
+
+/*						$timeeed = $globalrow['time']*60;
+						echo 'time : '.var_dump($timeeed)."\n";
+						echo 'grow : '.var_dump($globalrow['time'])."\n";
+						echo strftime( "&nbsp;&nbsp;&nbsp;&nbsp;%HH %Mm", $timeeed);
+						unset($timeeed);*/
+					?>
+				</p>
+			</div>
+			<div class="col-md-1"></div>
+		</div>
+		<div class="row">
+			<div class="col-md-1"></div>
+			<div class="col-md-10">
+				<h4>Client <small>(ticket n°<?php echo $_GET['id']; ?>)</small></h4>
+				<p>Nom:
+					<?php
+						if (($globalrow['u_group']==0 && $u_group=='') || $_POST['user']!="")
+						{
+							if ($_POST['user'])	{$user=$_POST['user'];}	else {$user=$globalrow['user'];}
+							$query = mysql_query("SELECT * FROM tusers WHERE id LIKE $user");
+							$row = mysql_fetch_array($query);
+							echo "$row[lastname] $row[firstname]";
+						} else {
+							if (($globalrow['u_group']!=$u_group) && $u_group!=''){$group=$u_group;}else {$group=$globalrow['u_group'];}
+							$query = mysql_query("SELECT * FROM `tgroups` WHERE id=$group");
+							$row = mysql_fetch_array($query);
+							echo "[G] $row[name]";
+						}
+					?>
+				&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Société:
+					<?php
+						$query = mysql_query("
+							SELECT c.name
+							FROM tincidents i
+							INNER JOIN tusers u ON u.id = i.user
+							INNER JOIN tcompany c ON c.id = u.company
+							WHERE u.lastname='".$row[lastname] ."' AND u.firstname='".$row[firstname]."'
+							GROUP BY c.name
+						");
+						$row = mysql_fetch_array($query);
+						echo $row['name'];
+					?>
+				</p>
+				<p>Adresse:
+					<?php
+						if (($globalrow['u_group']==0 && $u_group=='') || $_POST['user']!="")
+						{
+							if ($_POST['user'])	{$user=$_POST['user'];}	else {$user=$globalrow['user'];}
+							$query = mysql_query("
+								SELECT *, tcompany.zip AS tczip, tcompany.city AS tccity, tcompany.address AS tcaddress
+								FROM tcompany
+								INNER JOIN tusers ON tusers.company = tcompany.id
+								WHERE tusers.id LIKE $user
+							");
+							$row = mysql_fetch_array($query);
+							echo "$row[tcaddress] - $row[tczip] - $row[tccity]";
+						} else {
+							if (($globalrow['u_group']!=$u_group) && $u_group!=''){$group=$u_group;}else {$group=$globalrow['u_group'];}
+							$query = mysql_query("SELECT * FROM `tgroups` WHERE id=$group");
+							$row = mysql_fetch_array($query);
+						}
+					?>
+				</p>
+				<!--<p>Tél.:
+					<?php /*
+						if (($globalrow['u_group']==0 && $u_group=='') || $_POST['user']!="")
+						{
+							if ($_POST['user'])	{$user=$_POST['user'];}	else {$user=$globalrow['user'];}
+							$query = mysql_query("SELECT * FROM tusers WHERE id LIKE $user");
+							$row = mysql_fetch_array($query);
+							echo "$row[phone]";
+						} else {
+							if (($globalrow['u_group']!=$u_group) && $u_group!=''){$group=$u_group;}else {$group=$globalrow['u_group'];}
+							$query = mysql_query("SELECT * FROM `tgroups` WHERE id=$group");
+							$row = mysql_fetch_array($query);
+						}
+					*/ ?>
+				</p>-->
+			</div>
+			<div class="col-md-1"></div>
+		</div>
+		<hr>
+		<div class="row">
+			<div class="col-md-1"></div>
+			<div class="col-md-10">
+				<h4>Intervention</h4>
+				<p>Technicien:
+					<?php
+					//selected value
+					if ($globalrow['t_group']!=0)
+					{
+						$query = mysql_query("SELECT * FROM `tgroups` WHERE id=$globalrow[t_group]");
+						$row = mysql_fetch_array($query);
+						echo "[G] $row[name]";
+					} else {
+						if ($_POST['technician'])
+						{
+							$querytech = mysql_query("SELECT * FROM `tusers` WHERE disable='0' and id LIKE '$_POST[technician]' ");
+						} else {
+							$querytech = mysql_query("SELECT * FROM `tusers` WHERE disable='0' and id LIKE '$globalrow[technician]' ");		
+						}
+						$row=mysql_fetch_array($querytech);
+						$resultlastfirst = substr($row[firstname], 0, 1).'&nbsp;'.substr($row[lastname], 0, 1).'';
+						echo $resultlastfirst;
+					}
+					?>
+				</p>
+				<p>Nature de l'intervention:
+					<?php echo $globalrow['title']; ?>
+				</p>
+				<p>Catégorie:&nbsp;
+					<?php
+						$query= mysql_query("SELECT * FROM `tcategory` WHERE id=$globalrow[category] ");
+						$row=mysql_fetch_array($query);
+						echo "$row[name]";	
+						$query= mysql_query("SELECT * FROM `tsubcat` WHERE id=$globalrow[subcat] ");
+						$row=mysql_fetch_array($query);
+						echo "&nbsp;$row[name]";	
+					?>		
+				</p>
+				<p><b>Numéro de série:</b> <?php echo $globalrow['serialnumber']; ?>
+				</p>
+				<p>Temps de trajet aller/retour: <?php echo $globalrow['timetravel']; ?>
+				</p>
+				<p></p>
+			</div>
+			<div class="col-md-1"></div>
+		</div>
+		<div class="row">
+			<div class="col-md-1"></div>
+			<div class="col-md-10">
+				<p><u><b>Description du problème:</u></b><br><br>
+					<?php echo strip_tags($globalrow['description']); ?>
+				</p>
+				<br>
+				<p><b><u>Détail de l'intervention et pièces remplacés:</u></b><br><br>
+					<?php
+						$query = mysql_query("SELECT * FROM tthreads WHERE ticket='$_GET[id]' and type='0' ORDER BY date");
+						while ($row=mysql_fetch_array($query)) {
+							echo strip_tags($row[text]);
+						}
+					?>
+				</p>
+				<br>
+				<p>Garantie: <?php echo $globalrow['warranty']; ?>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Contrat de maintenance: <?php echo $globalrow['mntcontract']; ?>
+				</p>
+				<!--<p>Date de résolution:&nbsp;
+					<?php/*
+						if ($globalrow['date_res']!='0000-00-00 00:00:00')
+						{
+							echo $globalrow['date_res'];
+						}
+					*/ ?>	
+				</p>-->
+			</div>
+			<div class="col-md-1"></div>
+		</div>
+		<div style="position:absolute;bottom:0;width:100%;" class="row">
+			<hr>
+			<div class="col-md-1"></div>
+			<div class="col-md-10">
+				<h5 class="text-center">Bon pour accord de fin d'intervention&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Pour le Client "Lu et approuvé"</h5>
+				<div style="
+					border-width: 1px;
+					border-style: solid;
+					border-color: black;
+					height: 50px;
+					margin-left: 100px;
+					margin-right: 100px;
+				">
+				</div>
+				<br>
+				<p class="text-center" style="font-size:8px;">JCD54 - 6 allée Pelletier Doisy - 56000 - Villers-lès-Nancy - France - Tél.: 03.83.61.44.77 - Fax: 03.83.44.16.32 - E-mail: support@jcd54.fr</p>
+			</div>
+			<div class="col-md-1"></div>
+		</div>
+		<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS" crossorigin="anonymous"></script>
+	</div>
+	</body>
+	</html>
+<?php
+//mysql_close($connexion);
 } else {
-	echo '<div class="alert alert-danger"><strong><i class="icon-remove"></i>'.T_('Erreur').':</strong> '.T_('Vous n\'avez pas les droits d\'accès à cette page. Contacter votre administrateur').'.<br></div>';
-}
-//function date conversion
-function date_convert ($date) 
-{return  substr($date,8,2) . '/' . substr($date,5,2) . '/' . substr($date,0,4) . ' '.T_('à').' ' . substr($date,11,2	) . 'h' . substr($date,14,2	);}
-$db = null;
+		echo "<h1>Ce ticket ne vous appartient pas!</h1>";
+		die();
+} // end right
+} // end login
 ?>

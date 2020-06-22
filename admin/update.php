@@ -1,13 +1,13 @@
 <?php
 ################################################################################
 # @Name : update.php
-# @Description : page to update GestSup
-# @Call : admin.php
-# @Parameters : 
-# @Author : Flox
+# @Desc : page to update GestSup
+# @call : admin.php
+# @parameters : 
+# @Autor : Flox
 # @Create : 20/01/2011
-# @Update : 15/10/2019
-# @Version : 3.1.45
+# @Update : 20/01/2014
+# @Version : 3.0.5
 ################################################################################
 
 //initialize variables 
@@ -18,722 +18,256 @@ if(!isset($_POST['download'])) $_POST['download'] = '';
 if(!isset($_POST['install'])) $_POST['install'] = '';
 if(!isset($_POST['install_update'])) $_POST['install_update'] = '';
 if(!isset($_GET['install_update'])) $_GET['install_update'] = '';
-if(!isset($argv[1])) $argv[1] = '';
-if(!isset($argv[2])) $argv[2] = '';
 if(!isset($findpatch)) $findpatch = '';
-if(!isset($_SERVER['HTTP_ACCEPT_LANGUAGE'])) $_SERVER['HTTP_ACCEPT_LANGUAGE']='';
 
-//parameters of GestSup update server 
-$ftp_server="ftp.gestsup.fr";
-$ftp_user_name="gestsup";
-$ftp_user_pass="gestsup";
-
-//check if script is executed from command line
-if(php_sapi_name()=='cli') {$cmd_update=1;} else {$cmd_update=0;}
-
-if($cmd_update) {
-	if(!$argv[1]) {echo 'ERROR : you must specify autoinstall in first argument from command line'; exit;}
-	if(!$argv[2]) {echo 'ERROR : you must specify server key in second argument from command line'; exit;}
-}
-
-//check autoinstall for command line options
-if ($argv[1]=='autoinstall') {
-	require(__DIR__ . '/../connect.php');
-	//load parameters table
-	$qry = $db->prepare("SELECT * FROM `tparameters`");
-	$qry->execute();
-	$rparameters=$qry->fetch();
-	$qry->closeCursor();
-	
-	//locales
-	$lang = substr($_SERVER['HTTP_ACCEPT_LANGUAGE'], 0, 2);
-	if ($lang=='fr') {$_GET['lang'] = 'fr_FR';}
-	else {$_GET['lang'] = 'en_US';}
-	define('PROJECT_DIR', realpath('../'));
-	define('LOCALE_DIR', PROJECT_DIR .'/locale');
-	define('DEFAULT_LOCALE', '($_GET[lang]');
-	require_once(__DIR__.'/../components/php-gettext/gettext.inc');
-	$encoding = 'UTF-8';
-	$locale = (isset($_GET['lang']))? $_GET['lang'] : DEFAULT_LOCALE;
-	T_setlocale(LC_MESSAGES, $locale);
-	T_bindtextdomain($_GET['lang'], LOCALE_DIR);
-	T_bind_textdomain_codeset($_GET['lang'], $encoding);
-	T_textdomain($_GET['lang']);
-	
-	if($argv[2]==$rparameters['server_private_key'])
-	{
-		echo "SERVER KEY VALIDATION : OK".PHP_EOL;
-		$autoinstall=1;
-	} else {
-		echo "ERROR : Wrong server key, go to admin system panel";
-		exit;
-		$autoinstall=0;
-	}
-} else {
-	$autoinstall=0;
-}
- 
-//check dedicated version
-if(substr_count($rparameters['version'], '.')==3) {$dedicated=1;} else {$dedicated=0;}
- 
 //display title
-if(!$cmd_update)
-{
-	echo '
-	<div class="page-header position-relative">
-		<h1>
-			<i class="icon-circle-arrow-up"></i>  '.T_('Mise à jour de GestSup').'
-		</h1>
-	</div>
-	';
-}
-
-//check rights permission on files
-if(!$cmd_update && (!is_writable('./core/ticket.php') || !is_writable('./index.php') || !is_writable('./admin/parameters.php') || !is_writable('./download/readme.txt')))
-{
-		echo '
-		<div class="alert alert-danger">
-			<button type="button" class="close" data-dismiss="danger">
-				<i class="icon-remove"></i>
-			</button>
-			<strong>
-				<i class="icon-warning-sign"></i>
-				'.T_('Erreur').' :
-			</strong>
-			'.T_("Les fichiers serveur ne sont pas accessible en écriture, l'installation semi-automatique ne fonctionnera pas, modifier les droits d'écriture temporairement pour l'installation puis remettre les droits par défaut").'
-			<br>
-		</div>
-		';
-}
-//check if php ftp extension is loaded
-if (!extension_loaded('ftp')) {
-	if($cmd_update)
-	{
-		echo 'UPDATE ERRROR : you must load PHP_ftp extension from your php.ini'.PHP_EOL;
-		exit;
-	} else {
-		echo '
-		<div class="alert alert-danger">
-			<button type="button" class="close" data-dismiss="danger">
-				<i class="icon-remove"></i>
-			</button>
-			<strong>
-				<i class="icon-warning-sign"></i>
-				'.T_('Erreur').' :
-			</strong>
-			'.T_("L'extension ftp de PHP n'est pas activée, mise à jour impossible. (Modifier le fichier php.ini)").'
-			<br>
-		</div>
-		';
-	}
-}
+echo '
+<div class="page-header position-relative">
+	<h1>
+		<i class="icon-circle-arrow-up"></i>  Mise à jour de GestSup
+	</h1>
+</div>
+';
 
 //update update channel parameter
 if($_POST['update_channel']) 
 {
-	$qry=$db->prepare("UPDATE `tparameters` SET `update_channel`=:update_channel");
-	$qry->execute(array('update_channel' => $_POST['update_channel']));
+	$query="UPDATE tparameters SET update_channel='$_POST[update_channel]'";
+	mysql_query($query);
 }
+$qupdatechannel = mysql_query("SELECT update_channel FROM tparameters");
+$rupdatechannel = mysql_fetch_array($qupdatechannel);
+$rupdatechannel = $rupdatechannel[0];
 
-//get current channel 
-$qry = $db->prepare("SELECT `update_channel` FROM `tparameters`");
-$qry->execute();
-$update_channel=$qry->fetch();
-$update_channel= $update_channel[0];
-$qry->closeCursor();
+//update server parameters
+$ftp_server="gestsup.fr";
+$ftp_user_name="gestsup";
+$ftp_user_pass="gestsup";
 
-if($dedicated==0)
-{
-	//find current version
-	$current_version=$rparameters['version'];
-	$current_version2= explode('.',$current_version);
-	if($rparameters['debug']==1) {echo "<b><u>DEBUG MODE:</u></b><br /> [CHANNEL] $update_channel<br /> [GET DATA] Local server version: $current_version (Version: $current_version2[0].$current_version2[1] Patch: $current_version2[2])<br />";}
+//find current version
+$vactu=$rparameters['version'];
 
-	//find number of current patch
-	$current_patch=$current_version2[2];
+//find number of current patch
+$pactu=explode('.',$rparameters['version']);
+$pactu=$pactu[2];
 
-	//open ftp connection
-	$conn_id = ftp_connect($ftp_server,21,2) or die(
-	'
-	<div class="alert alert-danger">
-		<button type="button" class="close" data-dismiss="alert">
-			<i class="icon-remove"></i>
-		</button>
-		<strong>
-			<i class="icon-remove"></i>
-			'.T_('Erreur').':
-		</strong>
-		'.T_('Le serveur de mises à jour').' <b>'.$ftp_server.'</b> '.T_('est inaccessible, vérifier votre accès Internet ou l\'ouverture de votre firewall sur le port 21').'.
-		</div>'
-	);
-	$login_result = ftp_login($conn_id, $ftp_user_name, $ftp_user_pass);
-	$pasv = ftp_pasv($conn_id, true);
+//check lastest version
+$conn_id = ftp_connect($ftp_server,21,5) or die("Connexion au serveur FTP impossible (Vérifier votre connexion Internet et votre pare-feu sur le port 21)");
+$login_result = ftp_login($conn_id, $ftp_user_name, $ftp_user_pass);
+$pasv = ftp_pasv($conn_id, true);
+$contents = ftp_nlist($conn_id, "./versions/current/$rparameters[update_channel]/gestsup*");
+if($contents) {
+	$vserv=explode("_",$contents[0]);
+	$vserv=explode(".zip",$vserv['1']);
+	$vserv=$vserv[0];
+} else {$vserv='';}
 
-	//get ftp data of current update channel
-	$ftp_list=ftp_nlist($conn_id, "./versions/current/$rparameters[update_channel]/");
+////check patch + 1
+$n1=$pactu+1;
+$filter=explode('.',$rparameters['version']);
+$filter="$filter[0].$filter[1].$n1";
+$conn_id = ftp_connect($ftp_server,21,5) or die("Connexion au serveur FTP impossible (Vérifier votre connexion Internet et votre pare-feu sur le port 21)");
+$login_result = ftp_login($conn_id, $ftp_user_name, $ftp_user_pass);
+$pasv = ftp_pasv($conn_id, true);
+$contents = ftp_nlist($conn_id, "./versions/current/$rparameters[update_channel]/patch_$filter.zip");
+if($contents) {
+	$pserv=explode("_",end($contents));
+	$pservfull=explode(".zip",$pserv[1]);
+	$pserv=explode(".",$pservfull[0]);
+	$pserv=$pserv[2];
+} else $pserv='';
 
-	//get patch only
-	$patch_ftp_list = preg_grep("/patch_$current_version2[0].$current_version2[1]/", $ftp_list);
-	$patch_ftp_array = array();
-	foreach($patch_ftp_list as $patch){
-		$patch=explode("_",$patch);
-		$patch=explode(".zip",$patch[1]);
-		$patch=explode(".",$patch[0]);
-		array_push($patch_ftp_array, $patch[2]);
-	}
-	asort($patch_ftp_array);
-	$last_ftp_patch=end($patch_ftp_array);
-	if ($last_ftp_patch) 
+//generate name of current version
+$vactuname=explode('.',$rparameters['version']);
+if($vactuname[2]==0) $vactuname=''; else $vactuname="($vactuname[0].$vactuname[1] patch $vactuname[2])";
+ 
+
+//check update server
+if ($vserv!=''){
+	$serverstate='<i class="icon-ok-sign icon-large green"></i> <font color="green">Serveur de mise à jour GestSup disponible.</font>';
+	
+	//compare versions
+	if ($vactu==$vserv)
 	{
-		if($rparameters['debug']==1) {echo "[GET DATA] Last patch available on FTP server: $last_ftp_patch of version $current_version2[0].$current_version2[1]  <br />"; /*var_dump($patch_ftp_array);*/}
-	} else {
-		if($rparameters['debug']==1) {echo "[GET DATA] No patch available for version $current_version2[0].$current_version2[1]  <br />"; /*var_dump($patch_ftp_array);*/}
-	}
-
-	//get version only
-	$version_ftp_list = preg_grep("/gestsup*/", $ftp_list);
-	$version_ftp_array = array();
-	foreach($version_ftp_list as $version){
-		$version=explode("_",$version);
-		$version=explode(".zip",$version[1]);
-		$version=explode(".",$version[0]);
-		array_push($version_ftp_array, $version);
-	}
-	asort($version_ftp_array);
-	$last_ftp_version2=end($version_ftp_array);
-	$last_ftp_version="$last_ftp_version2[0].$last_ftp_version2[1].$last_ftp_version2[2]";
-	if ($last_ftp_version) 
-	{
-		if($rparameters['debug']==1) {echo "[GET DATA] Last version available on FTP server: $last_ftp_version<br />"; /*var_dump($version_ftp_array);*/}
-	} else {
-		if($rparameters['debug']==1) {echo "[GET DATA] No new version is available on FTP server. <br />"; /*var_dump($version_ftp_array)*/;}
-	}
-
-	//close ftp connection
-	ftp_close($conn_id);
-
-	//generate name of current version to display only
-	$current_version_name='('.T_('Version').' '.$current_version2[0].'.'.$current_version2[1].' '.T_('avec patch').' '.$current_version2[2].')';
-	 
-	//check update server
-	if ($last_ftp_version!=''){
-		$serverstate='<i class="icon-ok-sign icon-large green"></i> <font color="green">'.T_('Serveur de mise à jour').' <b>'.$ftp_server.'</b> '.T_('est disponible').'.</font>';
+		$message='<div class="alert alert-block alert-success"><i class="icon-ok green"></i> Votre version <strong class="green"><small>'.$vserv.'</small></strong> est à jour.	</div>';
 		$findversion=0;
-		$findpatch=0;
-		//compare versions check two first number of version name
-		if (($current_version2[0]==$last_ftp_version2[0]) && ($current_version2[1]==$last_ftp_version2[1]))
-		{
-			if($rparameters['debug']==1) {echo "[COMPARE VERSIONS] Local server version $current_version2[0].$current_version2[1] is the same as FTP server $last_ftp_version2[0].$last_ftp_version2[1] <br />"; }
-			//compare patchs
-			if ($current_patch==$last_ftp_patch)
-			{
-				if($rparameters['debug']==1) {echo "[COMPARE PATCH] Local server patch $current_patch is the same that FTP server $last_ftp_patch <br />"; }
-				$message='<div class="alert alert-block alert-success"><i class="icon-ok green"></i> '.T_('Votre version').' <strong class="green"><small>'.$current_version2[0].'.'.$current_version2[1].' Patch '.$current_patch.'</small></strong> '.T_('est à jour').'.	</div>';
-				if($cmd_update){echo 'OK : CURRENT VERSION IS ALREADY UP TO DATE'; exit;}
-			} 
-			elseif ($current_patch>$last_ftp_patch)
-			{
-				if($rparameters['debug']==1) {echo "[COMPARE PATCH] Local server patch $current_patch is superior than FTP server $last_ftp_patch <br />"; }
-				$message='<div class="alert alert-block alert-success"><i class="icon-ok green"></i> '.T_('Votre version').' <strong class="green"><small>'.$current_version2[0].'.'.$current_version2[1].' Patch '.$current_patch.'</small></strong> '.T_('est supérieur à la dernière version disponible, vous devez avoir changé de canal de mises à jour').'.</div>';
-				if($cmd_update){echo 'OK : CURRENT VERSION SUPERIOR THAN LASTEST AVAILABLE VERSION'; exit;}
-			}
-			elseif ($current_patch<$last_ftp_patch)
-			{
-				$findpatch=1;
-				//generate n+1 name if more than one patch is available
-				if (($last_ftp_patch-$current_patch)>1) {$next_ftp_patch=$current_patch+1;} else {$next_ftp_patch=$last_ftp_patch;}
-				if($rparameters['debug']==1) {echo "[COMPARE PATCH] Local server patch $current_patch is inferior than FTP Server $last_ftp_patch <br />"; }
-				$message='<div class="alert alert-block alert-success"><i class="icon-ok green"></i> '.T_('Un nouveau patch').' <strong class="green"><small>'.$next_ftp_patch.'</small></strong> '.T_('pour votre version').' <strong class="green"><small>'.$current_version2[0].'.'.$current_version2[1].'</small></strong> '.T_('est disponible en téléchargement').'.</div>';
-				$cmd_msg='NEW PATCH '.$next_ftp_patch.' AVAILABLE'.PHP_EOL;
-			}
-		}
-		else if (($current_version2[0]<$last_ftp_version2[0]) || ($current_version2[1]<$last_ftp_version2[1]))
-		{
-			if($rparameters['debug']==1) {echo "[COMPARE VERSIONS] Local server version $current_version2[0].$current_version2[1] is inferior than FTP server $last_ftp_version2[0].$last_ftp_version2[1]<br />"; }
-			$message='<div class="alert alert-block alert-success"><i class="icon-ok green"></i> '.T_('La version').' <strong class="green"><small>'.$last_ftp_version.'</small></strong> '.T_('est disponible au téléchargement').'. </div>';
-			$findversion=1;
-		}
-		else if (($current_version2[0]>$last_ftp_version2[0]) || (($current_version2[0]>$last_ftp_version2[0])&&($current_version2[1]>$last_ftp_version2[1])))
-		{
-			if($rparameters['debug']==1) {echo "[COMPARE VERSIONS] Local server version $current_version2[0].$current_version2[1] is superior than FTP server GestSup $last_ftp_version2[0].$last_ftp_version2[1], you are maybe a developper.<br />"; }
-		}
-
-		//display check message
-		if($cmd_update){echo $cmd_msg;} else {if($_POST['check']) {echo $message;}}
-
-		//downloads
-		if($_POST['download'] || ($autoinstall==1))
-		{
-			if ($findversion==1) //version
-			{
-				$file_ftp_url="/versions/current/$update_channel/gestsup_$last_ftp_version.zip";
-				$file_local_url=__DIR__ ."/../download/gestsup_$last_ftp_version.zip";
-				$conn_id = ftp_connect($ftp_server);
-				$login_result = ftp_login($conn_id, $ftp_user_name, $ftp_user_pass);
-				if ((!$conn_id) || (!$login_result)) {
-					
-					if($cmd_update)
-					{
-						echo 'ERROR DURING DOWNLOAD THE LASTEST VERSION'.PHP_EOL;
-						exit;
-					}
-					else {
-						echo'<div class="alert alert-danger"><strong><i class="icon-remove"></i> '.T_('Erreur').':</strong> '.T_('Le téléchargement de la dernière version à échoué, vérifiez les droits d\'écriture sur le répertoire ./download de votre serveur web').'.</div>';
-						die;
-					}
-				}
-				$pasv = ftp_pasv($conn_id, true);
-				$download = ftp_get($conn_id, $file_local_url, $file_ftp_url, FTP_BINARY);
-				if (!$download) 
-				{
-					if($cmd_update)
-					{
-						echo 'ERROR DURING DOWNLOAD THE LASTEST VERSION'.PHP_EOL;
-						exit;
-					} else {
-						echo'<div class="alert alert-danger"><i class="icon-remove"></i><strong> '.T_('Erreur').':</strong> '.T_('Le téléchargement de la dernière version à échoué').'.</div>';
-					}
-				}
-				else 
-				{
-					if($cmd_update)
-					{
-						echo 'DOWNLOAD GESTSUP VERSION COMPLETED'.PHP_EOL;
-					} else {
-						echo '<div class="alert alert-block alert-success"><i class="icon-ok green"></i> '.T_('La version').' <strong class="green"><small>'.$last_ftp_version.'</small></strong> '.T_('à été téléchargée dans le répertoire "./download" du serveur web').'.</div>';
-					}
-				}
-				ftp_quit($conn_id);
-			}
-			else if ($findpatch==1) //patch
-			{
-				$file_ftp_url="/versions/current/$update_channel/patch_$current_version2[0].$current_version2[1].$next_ftp_patch.zip";
-				$file_local_url=__DIR__ ."/../download/patch_$current_version2[0].$current_version2[1].$next_ftp_patch.zip";
-				$conn_id = ftp_connect($ftp_server);
-				$login_result = ftp_login($conn_id, $ftp_user_name, $ftp_user_pass);
-				if ((!$conn_id) || (!$login_result)) {
-					if($cmd_update)
-					{
-						echo 'ERROR DURING DOWNLOAD THE LASTEST PATCH'.PHP_EOL;
-					} else {
-						echo'<div class="alert alert-danger"><strong><i class="icon-remove"></i> '.T_('Erreur').':</strong> '.T_('Le téléchargement du dernier patch à échoué. (connexion impossible)').'</div>';
-						die;
-					}
-				} 
-				$pasv = ftp_pasv($conn_id, true);
-				$download = ftp_get($conn_id, $file_local_url, $file_ftp_url, FTP_BINARY);
-				if (!$download) 
-				{
-					if($cmd_update)
-					{
-						echo 'ERROR DURING DOWNLOAD THE LASTEST PATCH'.PHP_EOL;
-					} else {
-						echo'<div class="alert alert-danger"><i class="icon-remove"></i><strong> '.T_('Erreur').':</strong> '.T_('Le téléchargement du dernier patch à échoué. (Téléchargement impossible)').'</div>';
-					}
-				}
-				else 
-				{
-					if($cmd_update)
-					{
-						echo 'DOWNLOAD GESTSUP PATCH COMPLETED'.PHP_EOL;
-					} else {
-						echo '<div class="alert alert-block alert-success"><i class="icon-ok green"></i> '.T_('Le patch').'	<strong class="green"><small>'.$next_ftp_patch.'</small></strong> '.T_('à été téléchargé dans le répertoire').' "./download" '.T_('du serveur web').'.</div>';
-					}
-				}
-				ftp_quit($conn_id);
-			} else {
-				if($cmd_update)
-				{
-					echo 'CURRENT VERSION ALREADY UP TO DATE NO DOWNLOAD AVAILABLE'.PHP_EOL;
-				} else {
-					echo '<div class="alert alert-block alert-success"><i class="icon-ok green"></i> '.T_('Votre version').' <strong class="green"><small>'.$current_version.'</small></strong>	'.T_('est à jour, pas de téléchargement nécessaire').'.</div>';
-				}
-			}
-		}
-		//install version
-		if($_POST['install'] || ($autoinstall==1))
-		{
-			if ($findpatch==0 && $findversion==0)
-			{
-				if($cmd_update)
-				{
-					echo 'UNABLE TO INSTALL UPDATE'.PHP_EOL;
-				} else {
-					echo '<div class="alert alert-danger"><i class="icon-remove"></i> <strong>'.T_('Erreur').':</strong> '.T_('Installation impossible votre version est à jour').'.</div>';
-				}
-			} 
-			if($findversion!=0) 
-			{
-				if(file_exists(__DIR__ ."/../download/gestsup_$last_ftp_version.zip"))
-				{
-					$installfile="gestsup_$last_ftp_version.zip";
-					if($cmd_update)
-					{
-						echo 'INSTALLING UPDATE...'.PHP_EOL;
-					} else {
-						echo '<div class="alert alert-block alert-success"><i class="icon-ok green"></i> '.T_('Installation du fichier').' <strong class="green"><small>'.$installfile.'</small></strong>	'.T_('en cours...').'</div>';
-					}
-					$type="version";
-					include(__DIR__ ."/../core/install_update.php");
-				} else {
-					if($cmd_update)
-					{
-						echo 'ERROR YOU MUST DOWNLOAD LASTEST VERSION FIRST'.PHP_EOL;
-					} else {
-						echo '<div class="alert alert-danger"><i class="icon-remove"></i> <strong>'.T_('Erreur').':</strong> '.T_('Vous devez d\'abord télécharger la dernière version').' '.$last_ftp_version.'.</div>';
-					}
-				}
-			}
-			if($findpatch!=0)
-			{
-				if(file_exists(__DIR__ ."/../download/patch_$current_version2[0].$current_version2[1].$next_ftp_patch.zip"))
-				{
-					$installfile="patch_$current_version2[0].$current_version2[1].$next_ftp_patch.zip";
-					if($cmd_update)
-					{
-						echo 'INSTALLING UPDATE...'.PHP_EOL;
-					} else {
-						echo '<div class="alert alert-block alert-success"><i class="icon-ok green"></i> '.T_('Installation du fichier').' <strong class="green"><small>'.$installfile.'</small></strong> '.T_('en cours...').'</div>';
-					}
-					$type="patch";
-					include(__DIR__ ."/../core/install_update.php");
-				} else {
-					if($cmd_update)
-					{
-						echo 'ERROR : YOU MUST DOWNLOAD THE LASTEST PATCH BEFORE'.PHP_EOL;
-					} else {
-						echo '<div class="alert alert-danger"><i class="icon-remove"></i> <strong>'.T_('Erreur').':</strong> '.T_('Vous devez d\'abord télécharger le dernier patch').' '.$next_ftp_patch.'</div>';
-					}
-				}
-			}
-		}
-		
-	} else {
-		$serverstate='<i class="icon-remove-sign icon-large red"></i> <font color="red">'.T_('Serveur de mise à jour GestSup indisponible, ou vous avez un problème de connection internet ou vous n\'avez pas autorisé le port 21 sur votre firewall').'.</font>';
+		$checkpatch=1;
 	}
-
-	//display informations
-	if(!$cmd_update)
+	else if ($vactu<$vserv)
 	{
-		echo'
-			<div class="profile-user-info profile-user-info-striped">
-				<div class="profile-info-row">
-					<div class="profile-info-name">'.T_('Version actuelle').':</div>
-					<div class="profile-info-value">
-						<span id="username">'.$rparameters['version'].' <span style="font-size: x-small;">'.$current_version_name.'</span></span>
-					</div>
-				</div>
-				<div class="profile-info-row">
-					<div class="profile-info-name"> '.T_('Canal').' : </div>
-					<div class="profile-info-value">
-						<span id="username">
-							<form method="POST" name="form">
-								<select name="update_channel" onchange="submit()">
-									<option value="stable" '; if ($update_channel=='stable') echo 'selected'; echo '>'.T_('Stable').'</option>
-									<option value="beta" '; if ($update_channel=='beta') echo 'selected'; echo '>'.T_('Bêta').'</option>
-								</select>
-							</form>
-						</span>
-					</div>
-				</div>
-				<div class="profile-info-row">
-					<div class="profile-info-name"> '.T_('Serveur MAJ').' : </div>
-					<div class="profile-info-value">
-						<span id="username">'.$serverstate.'</span>
-					</div>
-				</div>
-			</div>
-			<br />
-			<br />
-			<br />
-			<br />
-			<center>
-				<form method="POST" action="">
-					<button  title="'.T_('Vérifie sur le serveur FTP de GestSup si une version plus récente existe').'." name="check" value="check" type="submit" class="btn btn-primary">
-						<i class="icon-ok-sign bigger-120"></i>
-						1- '.T_('Vérifier').' 
-					</button>
-					<button title="'.T_('Lance le téléchargement depuis le serveur FTP de GestSup si une version plus récente existe').'." name="download" value="download" type="submit" class="btn btn-primary">
-						<i class="icon-download-alt bigger-120"></i>
-						2- '.T_('Télécharger').'
-					</button>
-					<button title="'.T_('Lance l\'installation de la version téléchargée').'" name="install" value="install" type="submit" class="btn btn-primary">
-						<i class="icon-hdd bigger-120"></i>
-						3- '.T_('Installation semi-automatique').'
-					</button>
-				</form>
-					<br />
-					<button title="'.T_('Lance le site web dans la section documentation').'" onclick=\'window.open("https://gestsup.fr/index.php?page=support&item1=update&item2=manual#53")\' type="submit" class="btn btn-grey">
-						<i class="icon-hdd bigger-120"></i>
-						'.T_('Installation manuelle').'
-					</button>
-					<button title="'.T_('Lance le site web dans la section documentation').'" onclick=\'window.open("https://gestsup.fr/index.php?page=support&item1=update&item2=auto#51")\' type="submit" class="btn btn-grey">
-						<i class="icon-hdd bigger-120"></i>
-						'.T_('Installation automatique').'
-					</button>
-					<button title="'.T_('Redirige vers la section sauvegarde de l\'application').'" onclick=\'window.open("./index.php?page=admin&subpage=backup")\' type="submit" class="btn btn-danger">
-						<i class="icon-save bigger-120"></i>
-						'.T_('Réaliser une sauvegarde').'
-					</button>
-			</center>
-		';
+		$message='<div class="alert alert-block alert-success"><i class="icon-ok green"></i> La version <strong class="green"><small>'.$vserv.'</small></strong> est disponible.</div>';
+		$findversion=1;
 	}
-} else { //dedicated version
-	//find current version
-	$current_version=$rparameters['version'];
-	$current_version2= explode('.',$current_version);
-	
-	//find number of current patch
-	$current_patch=$current_version2[3];
-	
-	if($rparameters['debug']==1) {echo "<b><u>DEBUG MODE:</u></b><br /> [VERSION] Dedicated <br />[GET DATA] Local server version: $current_version (Version: $current_version2[0].$current_version2[1].$current_version2[2] Patch: $current_patch)<br />";}
-
-	//open ftp connection
-	$conn_id = ftp_connect($ftp_server,21,2) or die(
-	'
-	<div class="alert alert-danger">
-		<button type="button" class="close" data-dismiss="alert">
-			<i class="icon-remove"></i>
-		</button>
-		<strong>
-			<i class="icon-remove"></i>
-			'.T_('Erreur').':
-		</strong>
-		'.T_('Le serveur de mises à jour').' <b>'.$ftp_server.'</b> '.T_('est inaccessible, vérifier votre accès Internet ou l\'ouverture de votre firewall sur le port 21').'.
-		</div>'
-	);
-	$login_result = ftp_login($conn_id, $ftp_user_name, $ftp_user_pass);
-	$pasv = ftp_pasv($conn_id, true);
-	
-	if(!$conn_id) {
-		$serverstate='<i class="icon-remove-sign icon-large red"></i> <font color="red">'.T_('Serveur de mise à jour GestSup indisponible, ou vous avez un problème de connection internet ou vous n\'avez pas autorisé le port 21 sur votre firewall').'.</font>';
-	} else {
-		$serverstate='<i class="icon-ok-sign icon-large green"></i> <font color="green">'.T_('Serveur de mise à jour').' <b>'.$ftp_server.'</b> '.T_('est disponible').'.</font>';
-	}
-	
-	//check dedicated version exist
-	if(!isset($command)) $command= '';
-	if (!ftp_chdir($conn_id,"./versions/dedicated/$rparameters[server_private_key]/")){
-		if($rparameters['debug']==1) {echo "[DEDICATED] Directory not found<br />";}
-	} else {
-		if($rparameters['debug']==1) {echo "[DEDICATED] Directory found<br />";}
-		//list ftp data from dedicated version
-		$ftp_list=ftp_nlist($conn_id, "");
-		//get patch only
-		$patch_ftp_list = preg_grep("/patch_$current_version2[0].$current_version2[1].$current_version2[2]/", $ftp_list);
-		$patch_ftp_array = array();
-		foreach($patch_ftp_list as $patch){
-			$patch=explode("_",$patch);
-			$patch=explode(".zip",$patch[1]);
-			$patch=explode(".",$patch[0]);
-			array_push($patch_ftp_array, $patch[3]);
-		}
-		asort($patch_ftp_array);
-		$last_ftp_patch=end($patch_ftp_array);
-		if ($last_ftp_patch) 
-		{
-			if($rparameters['debug']==1) {echo "[GET DATA] Last patch available on FTP server: $last_ftp_patch of version $current_version2[0].$current_version2[1].$current_version2[2]  <br />"; /*var_dump($patch_ftp_array);*/}
-		} else {
-			if($rparameters['debug']==1) {echo "[GET DATA] No patch available for version $current_version2[0].$current_version2[1].$current_version2[2]  <br />"; /*var_dump($patch_ftp_array);*/}
-		}
-
-		//close ftp connection
-		ftp_close($conn_id);
-
-		//generate name of current version to display only
-		$current_version_name='('.T_('Version').' '.$current_version2[0].'.'.$current_version2[1].'.'.$current_version2[2].' '.T_('avec patch').' '.$current_version2[3].')';
-		 
-		//check update server
+	else if ($vactu>$vserv)
+	{
 		$findversion=0;
-		$findpatch=0;
+		$checkpatch=1;
+	}
 
-		if(!$last_ftp_patch)
+	//compare patchs
+	if($findversion==0 && $checkpatch==1)
+	{
+		if ($pserv=='')
 		{
-			if($cmd_update)
-			{
-				echo 'NO NEW PATCH AVAILABLE FOR YOUR VERSION'.PHP_EOL;
-				exit;
-			} else {
-				$message='<div class="alert alert-block alert-success"><i class="icon-ok green"></i> '.T_('Aucun nouveau patch pour votre version').' <strong class="green"><small>'.$current_version2[0].'.'.$current_version2[1].'.'.$current_version2[2].' Patch '.$current_patch.'</small></strong> '.T_("n'est encore disponible").'.	</div>';
-			}
-		}elseif ($current_patch==$last_ftp_patch)
-		{
-			if($rparameters['debug']==1) {echo "[COMPARE PATCH] Local server patch $current_patch is the same that FTP server $last_ftp_patch <br />"; }
-			$message='<div class="alert alert-block alert-success"><i class="icon-ok green"></i> '.T_('Votre version').' <strong class="green"><small>'.$current_version2[0].'.'.$current_version2[1].'.'.$current_version2[2].' Patch '.$current_patch.'</small></strong> '.T_('est à jour').'.	</div>';
-		} 
-		elseif ($current_patch>$last_ftp_patch)
-		{
-			if($rparameters['debug']==1) {echo "[COMPARE PATCH] Local server patch $current_patch is superior than FTP server $last_ftp_patch <br />"; }
-			if($cmd_update)
-			{
-				echo 'CURRENT VERSION IS SUPERIOR THAN AIVAIBLE VERSION'.PHP_EOL;
-				exit;
-			} else {
-				$message='<div class="alert alert-block alert-success"><i class="icon-ok green"></i> '.T_('Votre version').' <strong class="green"><small>'.$current_version2[0].'.'.$current_version2[1].'.'.$current_version2[2].' Patch '.$current_patch.'</small></strong> '.T_('est supérieur à la dernière version disponible, vous devez avoir changé de canal de mises à jour').'.</div>';
-			}
+			$message='<div class="alert alert-block alert-success"><i class="icon-ok green"></i> Votre version <strong class="green"><small>'.$vactu.'</small></strong> est à jour.</div>';
+			$findpatch=0;
 		}
-		elseif ($current_patch<$last_ftp_patch)
+		else if ($pactu<$pserv)
 		{
+			$message='<div class="alert alert-block alert-success"><i class="icon-ok green"></i> Le patch <strong class="green"><small>'.$pserv.'</small></strong> de votre version <strong class="green"><small>'.$vactu.'</small></strong> est disponible, vous pouvez lancer le téléchargement.</div>';
 			$findpatch=1;
-			//generate n+1 name if more than one patch is available
-			if (($last_ftp_patch-$current_patch)>1) {$next_ftp_patch=$current_patch+1;} else {$next_ftp_patch=$last_ftp_patch;}
-			if($rparameters['debug']==1) {echo "[COMPARE PATCH] Local server patch $current_patch is inferior than FTP Server $last_ftp_patch <br />"; }
-			if($cmd_update)
-			{
-				echo 'A NEW PATCH IS AIVAILABLE FOR YOUR VERSION'.PHP_EOL;
-			} else {
-				$message='<div class="alert alert-block alert-success"><i class="icon-ok green"></i> '.T_('Un nouveau patch').' <strong class="green"><small>'.$next_ftp_patch.'</small></strong> '.T_('pour votre version').' <strong class="green"><small>'.$current_version2[0].'.'.$current_version2[1].'.'.$current_version2[2].'</small></strong> '.T_('est disponible en téléchargement').'.</div>';
-			}
 		}
-		//display check message
-		if($cmd_update)
+		else if ($pactu>$pserv)
 		{
-			echo 'A NEW PATCH IS AIVAILABLE FOR YOUR VERSION'.PHP_EOL;
-		} else {
-			if($_POST['check']) echo $message;
-		}
-
-		//downloads
-		if($_POST['download'] || ($autoinstall==1))
-		{
-			if ($findpatch==1) //patch
-			{
-				$file_ftp_url="/versions/dedicated/$rparameters[server_private_key]/patch_$current_version2[0].$current_version2[1].$current_version2[2].$next_ftp_patch.zip";
-				$file_local_url=__DIR__ ."/../download/patch_$current_version2[0].$current_version2[1].$current_version2[2].$next_ftp_patch.zip";
-				$conn_id = ftp_connect($ftp_server);
-				$login_result = ftp_login($conn_id, $ftp_user_name, $ftp_user_pass);
-				if ((!$conn_id) || (!$login_result)) {
-					if($cmd_update)
-					{
-						echo 'ERROR : UNABLE TO DOWNLOAD THE LASTEST PATCH'.PHP_EOL;
-						exit;
-					} else {
-						echo'<div class="alert alert-danger"><strong><i class="icon-remove"></i> '.T_('Erreur').':</strong> '.T_('Le téléchargement du dernier patch à échoué. (connexion impossible)').'</div>';
-						die;
-					}
-				} 
-				$pasv = ftp_pasv($conn_id, true);
-				$download = ftp_get($conn_id, $file_local_url, $file_ftp_url, FTP_BINARY);
-				if (!$download) 
-				{
-					if($cmd_update)
-					{
-						echo 'ERROR DURING DOWNLOAD THE LASTEST PATCH'.PHP_EOL;
-						exit;
-					} else {
-						echo'<div class="alert alert-danger"><i class="icon-remove"></i><strong> '.T_('Erreur').':</strong> '.T_('Le téléchargement du dernier patch à échoué. (Téléchargement impossible)').'</div>';
-					}
-				}
-				else 
-				{
-					if($cmd_update)
-					{
-						echo 'LASTEST PATCH SUCCESSUFLY DOWNLOAD'.PHP_EOL;
-					} else {
-						echo '<div class="alert alert-block alert-success"><i class="icon-ok green"></i> '.T_('Le patch').'	<strong class="green"><small>'.$next_ftp_patch.'</small></strong> '.T_('à été téléchargé dans le répertoire').' "./download" '.T_('du serveur web').'.</div>';
-					}
-				}
-				ftp_quit($conn_id);
-			} else {
-				if($cmd_update)
-				{
-					echo 'YOUR VERSION IS UP TO DATE'.PHP_EOL;
-				} else {
-					echo '<div class="alert alert-block alert-success"><i class="icon-ok green"></i> '.T_('Votre version').' <strong class="green"><small>'.$current_version.'</small></strong>	'.T_('est à jour, pas de téléchargement nécessaire').'.</div>';
-				}
-			}
-		}
-		//install patch
-		if($_POST['install'] || ($autoinstall==1))
-		{
-			if ($findpatch==0)
-			{
-				if($cmd_update)
-				{
-					echo 'UNABLE TO INSTALL YOUR VERSION IS UP TO DATE'.PHP_EOL;
-					exit;
-				} else {
-					echo '<div class="alert alert-danger"><i class="icon-remove"></i> <strong>'.T_('Erreur').':</strong> '.T_('Installation impossible votre version est à jour').'.</div>';
-				}
-			} 
-			if($findpatch!=0)
-			{
-				if(file_exists(__DIR__ ."/../download/patch_$current_version2[0].$current_version2[1].$current_version2[2].$next_ftp_patch.zip"))
-				{
-					$installfile="patch_$current_version2[0].$current_version2[1].$current_version2[2].$next_ftp_patch.zip";
-					if($cmd_update)
-					{
-						echo 'INSTALLING PATCH...'.PHP_EOL;
-					} else {
-						echo '<div class="alert alert-block alert-success"><i class="icon-ok green"></i> '.T_('Installation du fichier').' <strong class="green"><small>'.$installfile.'</small></strong> '.T_('en cours...').'</div>';
-					}
-					$type="patch";
-					include(__DIR__ ."/../core/install_update.php");
-				} else {
-					if($cmd_update)
-					{
-						echo 'YOU MUST DONWLOAD THE LASTEST PATCH BEFORE'.PHP_EOL;
-						exit;
-					} else {
-						echo '<div class="alert alert-danger"><i class="icon-remove"></i> <strong>'.T_('Erreur').':</strong> '.T_('Vous devez d\'abord télécharger le dernier patch').' '.$next_ftp_patch.'</div>';
-					}
-				}
-			}
-		}
-
-		//display informations
-		if(!$cmd_update)
-		{
-			echo'
-			<div class="profile-user-info profile-user-info-striped">
-				<div class="profile-info-row">
-					<div class="profile-info-name">'.T_('Version actuelle').' : </div>
-					<div class="profile-info-value">
-						<span id="username">'.$rparameters['version'].' <span style="font-size: x-small;">'.$current_version_name.'</span></span>
-					</div>
-				</div>
-				<div class="profile-info-row">
-					<div class="profile-info-name"> '.T_('Serveur de MAJ').' : </div>
-					<div class="profile-info-value">
-						<span id="username">'.$serverstate.'</span>
-					</div>
-				</div>
-			</div>
-			<br />
-			<br />
-			<br />
-			<br />
-			<center>
-				<form method="POST" action="">
-					<button  title="'.T_('Vérifie sur le serveur FTP de GestSup si une version plus récente existe').'." name="check" value="check" type="submit" class="btn btn-primary">
-						<i class="icon-ok-sign bigger-120"></i>
-						1- '.T_('Vérifier').' 
-					</button>
-					<button title="'.T_('Lance le téléchargement depuis le serveur FTP de GestSup si une version plus récente existe').'." name="download" value="download" type="submit" class="btn btn-primary">
-						<i class="icon-download-alt bigger-120"></i>
-						2- '.T_('Télécharger').'
-					</button>
-					<button title="'.T_('Lance l\'installation de la version téléchargée').'" name="install" value="install" type="submit" class="btn btn-primary">
-						<i class="icon-hdd bigger-120"></i>
-						3- '.T_('Installation semi-automatique').'
-					</button>
-				</form>
-					<br />
-					<button title="'.T_('Lance le site web dans la section documentation').'" onclick=\'window.open("https://gestsup.fr/index.php?page=support&item1=update&item2=manual#53")\' type="submit" class="btn btn-grey">
-						<i class="icon-hdd bigger-120"></i>
-						'.T_('Installation manuelle').'
-					</button>
-					<button title="'.T_('Lance le site web dans la section documentation').'" onclick=\'window.open("https://gestsup.fr/index.php?page=support&item1=update&item2=auto#51")\' type="submit" class="btn btn-grey">
-						<i class="icon-hdd bigger-120"></i>
-						'.T_('Installation automatique').'
-					</button>
-					<button title="'.T_('Redirige vers la section sauvegarde de l\'application').'" onclick=\'window.open("./index.php?page=admin&subpage=backup")\' type="submit" class="btn btn-danger">
-						<i class="icon-save bigger-120"></i>
-						'.T_('Réaliser une sauvegarde').'
-					</button>
-			</center>
-			';
+			$message='<div class="alert alert-block alert-success"><i class="icon-ok green"></i> Le patch <strong class="green"><small>'.$pserv.'</small></strong> du serveur est inférieur à celui installée.</div>';
+			$findpatch=0;
 		}
 	}
+	//display check message
+	if($_POST['check']) echo $message;
+
+	//downloads
+	if($_POST['download'])
+	{
+		if ($vactu<$vserv) //version
+		{
+			$serveur_file="/versions/current/$rupdatechannel/gestsup_$vserv.zip";
+			$monmicro_file="./download/gestsup_$vserv.zip";
+			$conn_id = ftp_connect($ftp_server);
+			$login_result = ftp_login($conn_id, $ftp_user_name, $ftp_user_pass);
+			if ((!$conn_id) || (!$login_result)) {
+				echo'<div class="alert alert-danger"><strong><i class="icon-remove"></i> Erreur:</strong> Le téléchargement de la dernière version à échoué, vérifiez les droits d\'écriture sur le repertoire ./download.</div>';
+				die;
+			}
+			$pasv = ftp_pasv($conn_id, true);
+			$download = ftp_get($conn_id, $monmicro_file, $serveur_file, FTP_BINARY);
+			if (!$download) 
+			{
+				echo'<div class="alert alert-danger"><i class="icon-remove"></i><strong> Erreur:</strong> Le téléchargement de la dernière version à échoué.</div>';
+			}
+			else 
+			{
+				echo '<div class="alert alert-block alert-success"><i class="icon-ok green"></i> La version	<strong class="green"><small>'.$vserv.'</small></strong> à été téléchargé dans le repertoire "./download" du serveur web.</div>';
+			}
+			ftp_quit($conn_id);
+		}
+		else if ($pactu<$pserv) //patch
+		{
+			$serveur_file="/versions/current/$rupdatechannel/patch_$pservfull[0].zip";
+			$monmicro_file="./download/patch_$pservfull[0].zip";
+			$conn_id = ftp_connect($ftp_server);
+			$login_result = ftp_login($conn_id, $ftp_user_name, $ftp_user_pass);
+			if ((!$conn_id) || (!$login_result)) {
+				echo'<div class="alert alert-danger"><strong><i class="icon-remove"></i> Erreur:</strong> Le téléchargement du dernier patch à échoué. (connexion impossible)</div>';
+				die;
+			} 
+			$download = ftp_get($conn_id, $monmicro_file, $serveur_file, FTP_BINARY);
+			if (!$download) 
+			{
+				echo'<div class="alert alert-danger"><i class="icon-remove"></i><strong> Erreur:</strong> Le téléchargement du dernier patch à échoué. (Téléchargement impossible)</div>';
+			}
+			else 
+			{
+				echo '<div class="alert alert-block alert-success"><i class="icon-ok green"></i> Le patch	<strong class="green"><small>'.$pserv.'</small></strong> à été téléchargé dans le repertoire "./download" du serveur web.</div>';
+			}
+			ftp_quit($conn_id);
+		} else {
+			echo '<div class="alert alert-block alert-success"><i class="icon-ok green"></i> Votre version <strong class="green"><small>'.$vactu.'</small></strong>	est à jour, pas de téléchargement nécessaire.</div>';
+		}
+	}
+	//install version
+	if($_POST['install'])
+	{
+		if ($findpatch==0 && $findversion==0)
+		{
+			echo '<div class="alert alert-danger"><i class="icon-remove"></i> <strong>Erreur:</strong> Installation impossible votre version est à jour.</div>';
+		} 
+		if($findversion!=0) 
+		{
+			if(file_exists("./download/gestsup_$vserv.zip"))
+			{
+				$installfile="gestsup_$vserv.zip";
+				$type="version";
+				include("./core/install_update.php");
+			} else {
+				echo '<div class="alert alert-danger"><i class="icon-remove"></i> <strong>Erreur:</strong> Vous devez d\'abord télécharger la dernière version '.$vserv.'.</div>';
+			}
+		}
+		if($findpatch!=0)
+		{
+			if(file_exists("./download/patch_$pservfull[0].zip"))
+			{
+				$installfile="patch_$pservfull[0].zip";
+				$type="patch";
+				include("./core/install_update.php");
+			} else {
+				echo '<div class="alert alert-danger"><i class="icon-remove"></i> <strong>Erreur:</strong> Vous devez d\'abord télécharger le dernier patch '.$pserv.'</div>';
+			}
+		}
+	}
+	
+} else {
+	$serverstate='<i class="icon-remove-sign icon-large red"></i> <font color="red">Serveur de mise à jour GestSup indisponible, ou vous avez un problème de connection internet ou vous n\'avez pas autorisé le port 21 sur votre firewall.</font>';
 }
+
+//display informations
+echo'
+	<div class="profile-user-info profile-user-info-striped">
+		<div class="profile-info-row">
+			<div class="profile-info-name"> Version actuelle: </div>
+			<div class="profile-info-value">
+				<span id="username">'.$rparameters['version'].' <font size="1">'.$vactuname.'</font></span>
+			</div>
+		</div>
+		<div class="profile-info-row">
+			<div class="profile-info-name"> Canal: </div>
+			<div class="profile-info-value">
+				<span id="username">
+					<form method="POST" name="form">
+						<select name="update_channel" onchange="submit()">
+							<option value="stable" '; if ($rupdatechannel=='stable') echo 'selected'; echo '>Stable</option>
+							<option value="beta" '; if ($rupdatechannel=='beta') echo 'selected'; echo '>Bêta</option>
+						</select>
+					</form>
+				</span>
+			</div>
+		</div>
+		<div class="profile-info-row">
+			<div class="profile-info-name"> Serveur de MAJ: </div>
+			<div class="profile-info-value">
+				<span id="username">'.$serverstate.'</span>
+			</div>
+		</div>
+	</div>
+	<br />
+	<br />
+	<br />
+	<br />
+	<center>
+		<form method="POST" action="">
+			<button  name="check" value="check" type="submit" class="btn btn-primary">
+				<i class="icon-ok-sign bigger-120"></i>
+				Vérifier 
+			</button>
+			<button  name="download" value="download" type="submit" class="btn btn-primary">
+				<i class="icon-download-alt bigger-120"></i>
+				Télécharger
+			</button>
+			<button name="install" value="install" type="submit" class="btn btn-primary">
+				<i class="icon-hdd bigger-120"></i>
+				Installation automatique
+			</button>
+		</form>
+			<br />
+			<button onclick=\'window.open("http://gestsup.fr/index.php?page=install#update")\' type="submit" class="btn btn-primary">
+				<i class="icon-hdd bigger-120"></i>
+				Installation manuel
+			</button>
+			<button onclick=\'window.open("./index.php?page=admin&subpage=backup")\' type="submit" class="btn btn-danger">
+				<i class="icon-save bigger-120"></i>
+				Réaliser une sauvegarde
+			</button>
+	</center>
+
+';
 ?>
