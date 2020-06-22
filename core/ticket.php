@@ -252,7 +252,7 @@ if($_POST['modify']||$_POST['quit']||$_POST['mail']||$_POST['upload']||$save=="1
 
 
 
-////////////////////////////////////////////
+        // Recuperation du groupe d'utilisateur lors de l'insert ticket //
         $stugroup= "SELECT `group` FROM tgroups_assoc WHERE user='$uid'";
         $qugroup= mysql_query($stugroup) or die('Erreur TEST SQL !'.$stugroup.'<br /><br />'.mysql_error());
         $u_group = mysql_fetch_assoc($qugroup)["group"];

@@ -116,7 +116,7 @@ if(!isset($state)) $state = '';
 		}
 		if ($rright['side_all']!=0)
 		{
-		    ///////////// Test /////////////
+		    /// Recuperation du nombre de ticket en fonction du groupe
 	       if ($_SESSION['profile_id'] !=4 ){
                $cntall= mysql_query("SELECT count(*) FROM `tincidents`,`tusers`,`tgroups_assoc`,`tstates` WHERE 
 			    tincidents.state=tstates.id 
@@ -130,7 +130,8 @@ if(!isset($state)) $state = '';
                $cntall= mysql_fetch_array($cntall);
 
            }
-/////////////////////////////////
+            /////////////
+
 			if ($_GET['page']=='dashboard' && ($_GET['userid']=='%' || $_GET['userid']=='0') && $_GET['viewid']=='') echo '<li  class="active">'; else echo '<li>'; echo '
 				<a href="./index.php?page=dashboard&amp;userid=%&amp;state=%" class="dropdown-toggle">
 					<i class="icon-ticket"></i>
