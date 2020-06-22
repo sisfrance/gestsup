@@ -18,7 +18,7 @@
 var defaults = {
 
 	// display
-	defaultView: 'agendaWeek',
+	defaultView: 'month',
 	aspectRatio: 1.35,
 	header: {
 		left: 'title',
@@ -26,9 +26,9 @@ var defaults = {
 		right: 'today prev,next'
 	},
 	weekends: true,
-	weekNumbers: true,
+	weekNumbers: false,
 	weekNumberCalculation: 'iso',
-	weekNumberTitle: 'S',
+	weekNumberTitle: 'W',
 	
 	// editing
 	//editable: false,
@@ -46,41 +46,22 @@ var defaults = {
 	// time formats
 	titleFormat: {
 		month: 'MMMM yyyy',
-		week: " 'Du' d[ yyyy]{ 'au'[ MMM] d MMMM yyyy}",
+		week: "MMM d[ yyyy]{ '&#8212;'[ MMM] d yyyy}",
 		day: 'dddd, MMM d, yyyy'
 	},
 	columnFormat: {
 		month: 'ddd',
-		week: 'ddd d',
-		day: 'dddd d'
+		week: 'ddd M/d',
+		day: 'dddd M/d'
 	},
 	timeFormat: { // for event elements
-		"": "H'h'(mm) " // default
+		'': 'h(:mm)t' // default
 	},
 	
 	// locale
-	isRTL: false,
-	firstDay: 1,
-	monthNames: ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'],
-	monthNamesShort: ['Jan','Fev','Mar','Avr','Mai','Juin','Juil','Aoû','Sep','Oct','Nov','Déc'],
-	dayNames: ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'],
-	dayNamesShort: ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'],
-	buttonText: {
-		prev: "<span class='fc-text-arrow'>&lsaquo;</span>",
-		next: "<span class='fc-text-arrow'>&rsaquo;</span>",
-		prevYear: "<span class='fc-text-arrow'>&laquo;</span>",
-		nextYear: "<span class='fc-text-arrow'>&raquo;</span>",
-		today: 'Aujourd’hui',
-		month: 'Mois',
-		week: 'Semaine',
-		day: 'Jour'
-	},
-	
-	// locale
-	/*
 	isRTL: false,
 	firstDay: 0,
-	monthNames: ['Janvier','February','March','April','May','June','July','August','September','October','November','December'],
+	monthNames: ['January','February','March','April','May','June','July','August','September','October','November','December'],
 	monthNamesShort: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
 	dayNames: ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
 	dayNamesShort: ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
@@ -89,12 +70,12 @@ var defaults = {
 		next: "<span class='fc-text-arrow'>&rsaquo;</span>",
 		prevYear: "<span class='fc-text-arrow'>&laquo;</span>",
 		nextYear: "<span class='fc-text-arrow'>&raquo;</span>",
-		today: 'aujourd’hui',
+		today: 'today',
 		month: 'month',
 		week: 'week',
 		day: 'day'
 	},
-	*/
+	
 	// jquery-ui theming
 	theme: false,
 	buttonIcons: {
@@ -2772,13 +2753,13 @@ function AgendaDayView(element, calendar) {
 
 setDefaults({
 	allDaySlot: true,
-	allDayText: 'Jour',
-	firstHour: 8,
+	allDayText: 'all-day',
+	firstHour: 6,
 	slotMinutes: 30,
 	defaultEventMinutes: 120,
-	axisFormat: 'H(:mm)',
+	axisFormat: 'h(:mm)tt',
 	timeFormat: {
-		agenda: 'H:mm{ - HH:mm}'
+		agenda: 'h:mm{ - h:mm}'
 	},
 	dragOpacity: {
 		agenda: .5

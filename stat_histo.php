@@ -1,20 +1,20 @@
 <?php
-################################################################################
-# @Name : stat_histo.php
-# @Description : display histogram
-# @Call : /stats/histo_load.php
-# @Parameters : 
-# @Author : Flox
-# @Create : 06/11/2012
-# @Update : 26/10/2018
-# @Version : 3.1.36
-################################################################################
+/*
+Author: Flox
+File: stat_histo.php
+Description: display histogram
+Version: 1.0
+Creation date: 06/11/2012
+Last update: 06/11/2012
+*/
 ?>
+<script src="./components/Highcharts-2.3.3/js/modules/exporting.js"></script>
 <script type="text/javascript">
 $(function () {
     var chart;
     $(document).ready(function() {
         chart = new Highcharts.Chart({
+	
             chart: {
                 renderTo: '<?php echo $container; ?>',
                 type: 'column',
@@ -24,7 +24,7 @@ $(function () {
                 text: '<?php echo $libchart; ?>'
             },
             subtitle: {
-                text: '<?php echo T_("Nombre d\'heures de travail restantes dans les tickets ouverts"); ?>'
+                text: 'Nombre d\'heures de travail restantes dans les tickets ouverts'
             },
             xAxis: {
                 categories: [
@@ -41,7 +41,7 @@ $(function () {
             yAxis: {
                 min: 0,
                 title: {
-                    text: '<?php echo T_("Nombre d\'heures"); ?>'
+                    text: 'Nombre d\'heures'
                 }
             },
             legend: {
@@ -60,6 +60,7 @@ $(function () {
                         this.x +': '+ this.y +' h';
                 }
             },
+			
             plotOptions: {
                 column: {
                     pointPadding: 0.2,
@@ -68,7 +69,7 @@ $(function () {
             },
                 series: [
 				{
-					name: '<?php echo T_('Charge de travail en heures'); ?>',
+					name: 'Charge de travail en heures',
 					data: [
 					 <?php
 					for($i=0;$i<sizeof($values);$i++) 
@@ -84,5 +85,6 @@ $(function () {
 				]
         });
     });
+    
 });
 </script>

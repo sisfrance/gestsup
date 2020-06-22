@@ -1,46 +1,43 @@
 <?php
 ################################################################################
 # @Name : pie_tickets_tech.php
-# @Description : Display Statistics chart 1
+# @Desc : Display Statistics chart 1
 # @call : /stat.php
 # @parameters : 
 # @Author : Flox
 # @Create : 15/02/2014
-# @Update : 09/10/2019
-# @Version : 3.1.45
+# @Update : 25/11/2014
+# @Version : 3.0.11
 ################################################################################
 
 $values = array();
 $xnom = array();
-$libchart=T_('Tickets par techniciens');
-$unit=T_('tickets');
+$libchart="Tickets par techniciens";
+$unit='tickets';
 
 //total
-$query=$db->query("SELECT COUNT(*) FROM tincidents WHERE disable='0'");
-$month1=$query->fetch();
+$qtotal = mysql_query("SELECT count(*) FROM tincidents WHERE disable='0'");
+$month1=mysql_fetch_array($qtotal);
 
 $query1 = "
-SELECT CONCAT_WS('. ', left(tusers.firstname, 1),  tusers.lastname) as Technicien, count(*) as resolve 
+SELECT CONCAT_WS('. ', left(tusers.firstname, 1),  tusers.lastname) as Technicien, count(*) as Resolu 
 FROM tincidents 
 INNER JOIN tusers 
 ON (tincidents.technician=tusers.id ) 
 WHERE tusers.disable=0 AND
 tincidents.technician LIKE '$_POST[tech]' AND
 tincidents.type LIKE '$_POST[type]' AND
-tincidents.u_service LIKE '$_POST[service]' $where_service $where_agency AND
-$where_state AND
 criticality like '$_POST[criticality]' AND
 tincidents.category LIKE '$_POST[category]' AND
 tincidents.date_create LIKE '%-$_POST[month]-%' AND
 tincidents.date_create LIKE '$_POST[year]-%' AND
 tincidents.disable LIKE '0'
-GROUP BY tusers.id
-ORDER by resolve DESC";
-
-$query=$db->query($query1);
-while ($row = $query->fetch()) 
+GROUP BY tusers.firstname 
+ORDER by Resolu DESC";
+$query=mysql_query($query1);
+while ($row=mysql_fetch_array($query)) 
 {
-	$name=addslashes(substr($row[0],0,42));
+	$name=substr($row[0],0,42);
 	array_push($values, $row[1]);
 	array_push($xnom, $name);
 } 	

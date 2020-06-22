@@ -1,13 +1,13 @@
 <?php
 ################################################################################
 # @Name : pie_cat.php
-# @Description : Display Statistics of chart 2 number of tickets by categories
+# @Desc : Display Statistics of chart 2 number of tickets by catgories
 # @call : /stat.php
 # @parameters : 
 # @Author : Flox
 # @Create : 15/02/2014
-# @Update : 09/10/2019
-# @Version : 3.1.45
+# @Update : 25/11/2014
+# @Version : 3.0.11
 ################################################################################
 
 //array declaration
@@ -15,7 +15,7 @@ $values = array();
 $xnom = array();
 
 //display title
-$libchart=T_('Répartition du nombre de tickets par catégories');
+$libchart="Répartition du nombre de tickets par catégories";
 if ($_POST['category']!="%")
 {
 	$query1 = "
@@ -25,8 +25,6 @@ if ($_POST['category']!="%")
 	tincidents.category LIKE '$_POST[category]' AND
 	tincidents.disable='0' AND
 	tincidents.type LIKE '$_POST[type]' AND
-	tincidents.u_service LIKE '$_POST[service]' $where_service $where_agency AND
-	$where_state AND
 	criticality like '$_POST[criticality]' AND
 	tincidents.date_create LIKE '%-$_POST[month]-%' AND
 	tincidents.date_create LIKE '$_POST[year]-%' AND
@@ -44,8 +42,6 @@ else
 		WHERE 
 		tincidents.disable='0' AND
     	tincidents.type LIKE '$_POST[type]' AND
-		tincidents.u_service LIKE '$_POST[service]' $where_service $where_agency AND
-		$where_state AND
     	criticality like '$_POST[criticality]' AND
     	tincidents.date_create LIKE '%-$_POST[month]-%' AND
     	tincidents.date_create LIKE '$_POST[year]-%' AND
@@ -54,8 +50,8 @@ else
 		ORDER BY nb
 		DESC limit 0,10";
 }
-$query=$db->query($query1);
-while ($row = $query->fetch()) 
+$query = mysql_query($query1);
+while ($row=mysql_fetch_array($query)) 
 {
 	$name=substr($row[0],0,35);
 	$name=str_replace("'","\'",$name); 

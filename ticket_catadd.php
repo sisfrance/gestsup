@@ -1,13 +1,12 @@
 <?php
 ################################################################################
 # @Name : edit_categories.php
-# @Description : add and modify categories
-# @Call : ./ticket.php
-# @Parameters :  
+# @Desc : add and modify categories
+# @call : ./ticket.php
+# @parameters :  
 # @Author : Flox
-# @Create : 07/01/2014
-# @Update : 13/04/2018
-# @Version : 3.1.32
+# @Update : 01/11/2013
+# @Version : 3.0
 ################################################################################
 
 //initialize variables 
@@ -18,23 +17,18 @@ if(!isset($_GET['cat'])) $_GET['cat'] = '';
 if(!isset($_POST['addsubcat'])) $_POST['addsubcat'] = ''; 
 if(!isset($_POST['modifysubcat'])) $_POST['modifysubcat'] = ''; 
 if(!isset($_POST['subcatname'])) $_POST['subcatname'] = '';
-if(!isset($_POST['name'])) $_POST['name'] = '';
  
 if(!isset($subcat)) $subcat = '';
 if(!isset($subcatname)) $subcatname = '';
 if(!isset($name)) $name = '';
 
-$_GET['cat']=strip_tags($_GET['cat']);
-$_GET['editcat']=strip_tags($_GET['editcat']);
-$_POST['subcatname']=strip_tags($_POST['subcatname']);
-$_POST['name']=strip_tags($_POST['name']);
-
-$db_cat=strip_tags($db->quote($_GET['cat']));
-$db_editcat=strip_tags($db->quote($_GET['editcat']));
+//special char rename
+$_POST['subcatname'] = mysql_real_escape_string($_POST['subcatname']);
+$name = mysql_real_escape_string($name);
 
 if($_POST['addsubcat']){
-	$qry=$db->prepare("INSERT INTO `tsubcat` (`cat`,`name`) VALUES (:cat,:name)");
-	$qry->execute(array('cat' => $_GET['cat'],'name' => $_POST['subcatname']));
+	$requete = "INSERT INTO tsubcat (cat,name) VALUES ('$_GET[cat]','$_POST[subcatname]')";
+	$execution = mysql_query($requete);
 	//redirect
 	$www = "./index.php?page=ticket&id=$_GET[id]&userid=$_GET[userid]";
 	echo '<script language="Javascript">
@@ -44,8 +38,8 @@ if($_POST['addsubcat']){
 	</script>';
 }
 if($_POST['modifysubcat']){
-	$qry=$db->prepare("UPDATE `tsubcat` SET name=:name WHERE id=:id");
-	$qry->execute(array('name' => $_POST['name'],'id' => $_GET['editcat']));
+	$requete = "UPDATE tsubcat SET name='$_POST[name]' where id like '$_GET[subcat]'";
+	$execution = mysql_query($requete);
 	//redirect
 	$www = "./index.php?page=ticket&id=$_GET[id]&userid=$_GET[userid]";
 	echo '<script language="Javascript">
@@ -57,87 +51,61 @@ if($_POST['modifysubcat']){
 // new subcat
 if ($_GET['action']=="addcat")
 {
-	$boxtitle='<i class=\'icon-sitemap blue bigger-120\'></i> '.T_('Ajout d\'une sous-catégorie');
-	$boxtext= '
-	<form name="form" method="POST" action="" id="form">
-		<input name="addsubcat" type="hidden" value="1">
-		<label for="cat">'.T_('Catégorie').':</label>
+	$boxtitle="<i class='icon-user blue bigger-120'></i> Ajout d'une sous-catégorie";
+	$boxtext= "
+	<form name=\"form\" method=\"POST\" action=\"\" id=\"form\">
+		<input  name=\"addsubcat\" type=\"hidden\" value=\"1\">
+		<label for=\"cat\">Catégorie:</label>
 		<br />
-		<select id="cat" name="cat">
-			';
-			$qry=$db->prepare("SELECT `id`,`name` FROM `tcategory` ORDER BY name ASC");
-			$qry->execute();
-			while($row=$qry->fetch()) 
-			{
-				if($row['id']==0) //special case to translate none value
-				{$boxtext= $boxtext.'<option value="'.$row['id'].'">'.T_($row['name']).'</option>';}
-				else
-				{$boxtext= $boxtext.'<option value="'.$row['id'].'">'.$row['name'].'</option>';}
-			} 
-			$qry->closeCursor(); 
-			
-			$qry=$db->prepare("SELECT `id`,`name` FROM `tcategory` WHERE id=:id");
-			$qry->execute(array('id' => $_GET['cat']));
-			$row=$qry->fetch();
-			$qry->closeCursor();
-
-			$boxtext= $boxtext.'<option value="'.$row['id'].'" selected>'.$row['name'].'</option>';
-        	$boxtext= $boxtext.'				
+		<select id=\"cat\" name=\"cat\">
+			";
+			$qcat= mysql_query("SELECT * FROM `tcategory` order by name ASC");
+			while ($rcat=mysql_fetch_array($qcat)) {$boxtext= $boxtext.'<option value="'.$rcat['id'].'">'.$rcat['name'].'</option>';} 
+			$query= mysql_query("SELECT * FROM `tcategory` WHERE id like '$_GET[cat]'");
+			$row=mysql_fetch_array($query);	
+			$boxtext= $boxtext."<option value=\"$row[id]\" selected>$row[name]</option>";
+	$boxtext= $boxtext."				
 		</select>
 		<br />
-		<label for="subcat"> '.T_('Sous-catégorie').':</label>
-		<input  name="subcatname" type="text" value="'.$subcatname.'" size="26">
+		<label for=\"subcat\"> Sous-catégorie:</label>
+		<input  name=\"subcatname\" type=\"text\" value=\"$subcatname\" size=\"26\">
 	</form>
-	';
-	$valid=T_('Ajouter');
+	";
+	$valid="Ajouter";
 	$action1="$('form#form').submit();";
-	$cancel=T_('Fermer');
+	$cancel="Fermer";
 	$action2="$( this ).dialog( \"close\" ); ";
 }
 //edit subcat
 else
 {
-	$boxtitle='<i class=\'icon-user blue bigger-120\'></i>'.T_('Modification sous-catégorie');
-	$boxtext= '
-	<form name="form" method="POST" action="" id="form">
-		<input  name="modifysubcat" type="hidden" value="1">
-		'.T_('Catégorie').':
-		<br />
-		<select id="cat" name="cat">
-		';
-		$qry=$db->prepare("SELECT `id`,`name` FROM `tcategory` ORDER BY name ASC");
-		$qry->execute();
-		while($row=$qry->fetch()) 
-		{
-			$qry2=$db->prepare("SELECT `id` FROM `tcategory` WHERE id=:id");
-			$qry2->execute(array('id' => $_GET['cat']));
-			$row2=$qry2->fetch();
-			$qry2->closeCursor();
-			
-			if($row2['id']==$row['id']) {$selected='selected';} else {$selected='';}
-			if($row['id']==0) //case translate none value
-			{$boxtext= $boxtext.'<option value="'.$row['id'].'" '.$selected.'>'.T_($row['name']).'</option>';}
-			else
-			{$boxtext= $boxtext.'<option value="'.$row['id'].'" '.$selected.'>'.$row['name'].'</option>';}
-		}
-		$qry->closeCursor(); 
+	$boxtitle="<i class='icon-user blue bigger-120'></i>Modification de sous-catégorie";
+	$boxtext= "
+	<form name=\"form\" method=\"POST\" action=\"\" id=\"form\">
+		<input  name=\"modifysubcat\" type=\"hidden\" value=\"1\">
+		Catégorie:
+		<select  id=\"cat\" name=\"cat\">
+		";
+		$query= mysql_query("SELECT * FROM `tcategory` order by name ASC");
+		while ($row=mysql_fetch_array($query)) 	$boxtext=$boxtext."<option value=\"$row[id]\">$row[name]</option>";
 		
-		$qry=$db->prepare("SELECT `name` FROM `tsubcat` WHERE id=:id");
-		$qry->execute(array('id' => $_GET['editcat']));
-		$row=$qry->fetch();
-		$qry->closeCursor();
+		$query= mysql_query("SELECT * FROM `tcategory` WHERE id like '$_GET[cat]'");
+		$row=mysql_fetch_array($query);	
+		$boxtext=$boxtext."<option value=\"$row[id]\" selected>$row[name]</option>";
 		
-		$boxtext=$boxtext.'
+		$query = mysql_query("SELECT * FROM tsubcat WHERE id LIKE '$_GET[subcat]'");
+		$row=mysql_fetch_array($query);
+		$boxtext=$boxtext."
 		</select>
 		<br />
-		'.T_('Sous-catégorie').':
-		<input  name="name" type="text" size="26" value="'.$row['name'].'">
+		Sous-Catégorie:
+		<input  name=\"name\" type=\"text\" size=\"26\" value=\"$row[name]\">
 		<br /><br />
 	</form>
-	';
-	$valid=T_('Modifier');
+	";
+	$valid="Modifier";
 	$action1="$('form#form').submit();";
-	$cancel=T_('Fermer');
+	$cancel="Fermer";
 	$action2="$( this ).dialog( \"close\" ); ";
 }
 include "./modalbox.php"; 

@@ -1,13 +1,13 @@
 <?php
 ################################################################################
 # @Name : stat_bar_stacked.php
-# @Description : display bar graph to availability page
-# @Call : /availability.php
-# @Parameters : unit, values, names, libchart
+# @Desc : display bar graph to availabilty page
+# @call : /availability.php
+# @parameters : unit, values, names, libchart
 # @Author : Flox
 # @Create : 05/06/2014
-# @Update : 26/10/2018
-# @Version : 3.1.36
+# @Update : 05/06/2014
+# @Version : 3.0.9
 ################################################################################
 ?>
 
@@ -24,11 +24,11 @@ $(function () {
                 text: ''
             },
             xAxis: {
-                categories: ['<?php echo T_('Disponibilité'); ?>']
+                categories: ['Disponilbité']
             },
             yAxis: {
                 title: {
-                    text: '<?php echo T_('Pourcentage de disponibilité'); ?>'
+                    text: 'Pourcentage de disponibilité'
                 },
                 stackLabels: {
                     enabled: true,
@@ -69,15 +69,16 @@ $(function () {
                 }
             },
             series: [{
-                name: '<?php echo T_('Indisponibilité'); ?>',
+                name: 'Indisponibilité',
                 data: [<?php echo $tx2; ?>],
                 color: '#AA4643'
             }, {
-                name: '<?php echo T_('Disponibilité'); ?>',
+                name: 'Disponibilité',
                 data: [<?php echo $tx; ?>],
                 color: '#89A54E'
             }]
         });
     });
+    
 });
 </script>

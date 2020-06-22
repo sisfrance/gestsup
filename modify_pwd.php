@@ -1,13 +1,13 @@
 <?php
 ################################################################################
 # @Name : modify_pwd.php
-# @Description : change password popup
-# @Call : /dashboard.php
-# @Parameters : 
+# @Desc : change password popup
+# @call : /dashboard.php
+# @paramters : 
 # @Author : Flox
 # @Create : 05/02/2012
-# @Update : 03/07/2019
-# @Version : 3.1.42
+# @Update : 08/11/2013
+# @Version : 3.0
 ################################################################################
 
 //initialize variables 
@@ -19,61 +19,52 @@ if(!isset($updated)) $updated = '';
 if(!isset($oldpassword)) $oldpassword = ''; 
 if(!isset($secure_password)) $secure_password = ''; 
 if(!isset($boxtext)) $boxtext = ''; 
-  
-if($_POST['modifypwd'] && $_SESSION['user_id'])
+ 
+$qu = mysql_query("SELECT * FROM tusers WHERE id=$_SESSION[user_id]");
+$ru=mysql_fetch_array($qu);
+ 
+if($_POST['modifypwd'])
 {
-	
-	//get user informations
-	$qry=$db->prepare("SELECT `salt`,`password` FROM `tusers` WHERE id=:id");
-	$qry->execute(array('id' => $_SESSION['user_id']));
-	$row=$qry->fetch();
-	$qry->closeCursor();
-	
-	//check old password
+	//find uncrypted or crypted old password
 	$oldpassword=0;
-	if(password_verify($_POST['oldpwd'],$row['password'])) {$oldpassword=1;}
+	if ($_POST['oldpwd']==$ru['password']) $oldpassword=1;
+	if (md5($ru['salt'] . md5($_POST['oldpwd']))==$ru['password']) $oldpassword=1;
 		
-	
-	if($_POST['oldpwd']=="" || $_POST['newpwd1']=="" || $_POST['newpwd2']=="") //check empty password
+	// check empty password
+	if ($_POST['oldpwd']=="" || $_POST['newpwd1']=="" || $_POST['newpwd2']=="")
 	{
-		$boxtext='<div class="alert alert-block alert-danger"><center><i class="icon-remove red"></i> <b>'.T_('Erreur').' :</b> '.T_('Veuillez remplir tous les champs').'.</center></div>';
+		$boxtext='<div class="alert alert-block alert-danger"><center><i class="icon-remove red"></i> <b>Erreur:</b> Veuillez remplir tous les champs.</center></div>';
 	}
-	elseif ($oldpassword!='1') //check old password
+	// check old password
+	else if ($oldpassword!='1')
 	{
-		$boxtext='<div class="alert alert-block alert-danger"><center><i class="icon-remove red"></i> <b>'.T_('Erreur').' :</b> '.T_('Votre ancien mot de passe est erroné').'.</center></div>';
+		$boxtext='<div class="alert alert-block alert-danger"><center><i class="icon-remove red"></i> <b>Erreur:</b> Votre ancien mot de passe est erroné.</center></div>';
 	}
-	elseif ($_POST['newpwd1']!=$_POST['newpwd2']) //check new passwords
+	// check new passwords
+	else if ($_POST['newpwd1']!=$_POST['newpwd2'])
 	{
-		$boxtext='<div class="alert alert-block alert-danger"><center><i class="icon-remove red"></i> <b>'.T_('Erreur').' :</b> '.T_('Les deux nouveaux mot de passes sont différents').'.</center></div>';
-	}
-	elseif($rparameters['user_password_policy'] && $_POST['newpwd1'] && (strlen($_POST['newpwd1'])<$rparameters['user_password_policy_min_lenght'])) //password policy
-	{
-		$boxtext='<div class="alert alert-danger"><i class="icon-remove"></i> <strong>'.T_('Erreur').' :</strong> '.T_('Le mot de passe doit faire').' '.$rparameters['user_password_policy_min_lenght'].' '.T_('caractères minimum').'</div>';
-	}
-	elseif($rparameters['user_password_policy'] && $_POST['newpwd1'] && ($rparameters['user_password_policy_special_char'] && !preg_match('/[^a-zA-Z\d]/', $_POST['newpwd1']))) //password policy
-	{
-		$boxtext='<div class="alert alert-danger"><i class="icon-remove"></i> <strong>'.T_('Erreur').' :</strong> '.T_('Le mot de passe doit contenir un caractère spécial').'</div>';
-	}
-	elseif($rparameters['user_password_policy_min_maj'] && (!preg_match('/[A-Z]/', $_POST['newpwd1']) || !preg_match('/[a-z]/', $_POST['newpwd1']))) //password policy
-	{
-		$boxtext='<div class="alert alert-danger"><i class="icon-remove"></i> <strong>'.T_('Erreur').' :</strong> '.T_('Le mot de passe doit au moins une lettre majuscule et une minuscule').'</div>';
+		$boxtext='<div class="alert alert-block alert-danger"><center><i class="icon-remove red"></i> <b>Erreur:</b> Les deux nouveaux mot de passes sont différents.</center></div>';
 	}
 	else
 	{
-		if($_POST['newpwd1']!='') { //update password
-			$date=date('Y-m-d');
-			$hash = password_hash($_POST['newpwd1'], PASSWORD_DEFAULT);
-			$qry=$db->prepare("UPDATE `tusers` SET `chgpwd`=0, `last_pwd_chg`=:last_pwd_chg, `password`=:password WHERE `id`=:id");
-			$qry->execute(array('last_pwd_chg' => $date,'password' => $hash,'id' => $_SESSION['user_id']));
-			$updated=1;
+		//crypt password md5 + salt
+		if($_POST['newpwd1']!='') {
+			$salt = substr(md5(uniqid(rand(), true)), 0, 5); //generate a random key
+			$_POST['newpwd1']=md5($salt . md5($_POST['newpwd1'])); //store in md5, md5 password + salt.
 		}
+		
+		$query = "UPDATE tusers SET chgpwd='0' where id like '$_SESSION[user_id]'";
+		$exec = mysql_query($query) or die('Erreur SQL !<br /><br />'.mysql_error());
+		$query = "UPDATE tusers SET password='$_POST[newpwd1]', salt='$salt' where id like '$_SESSION[user_id]'";
+		$exec = mysql_query($query) or die('Erreur SQL !<br /><br />'.mysql_error());
+		$updated=1;
 	} 
 }
-if($updated==1)
+if ($updated==1)
 {
-	$boxtitle="<i class='icon-lock blue bigger-120'></i> ".T_('Modification du mot de passe');
-	$boxtext= '<div class="alert alert-block alert-success"><center><i class="icon-ok green"></i>	'.T_('Votre mot de passe a été changé avec succès').'.</center></div>';
-	$cancel=T_('Fermer');
+	$boxtitle="<i class='icon-lock blue bigger-120'></i> Modification du mot de passe";
+	$boxtext= '<div class="alert alert-block alert-success"><center><i class="icon-ok green"></i>	Votre mot de passe à été changé avec succès.</center></div>';
+	$cancel="Fermer";
 	$action2="$( this ).dialog( \"close\" ); ";
 }
 else
@@ -81,19 +72,19 @@ else
 	$boxtext=$boxtext.'
 	<form name="form" method="POST" action="" id="form">
 		<input name="modifypwd" type="hidden" value="1">
-		<label for="oldpwd" >'.T_('Ancien mot de passe').' :</label> 
+		<label for="oldpwd" >Ancien mot de passe:</label> 
 		<input  name="oldpwd" type="password" >
-		<label for="newpwd1" >'.T_('Nouveau mot de passe').' :</label> 
+		<label for="newpwd1" >Nouveau mot de passe:</label> 
 		<input  name="newpwd1" type="password" >
-		<label for="newpwd2" >'.T_('Nouveau mot de passe').' :</label> 
+		<label for="newpwd2" >Nouveau mot de passe:</label> 
 		<input  name="newpwd2" type="password" >
 	</form>
 	';
 }
-$boxtitle="<i class='icon-lock blue bigger-120'></i> ".T_('Modification du mot de passe');
-$valid=T_('Modifier');
+$boxtitle="<i class='icon-lock blue bigger-120'></i> Modification du mot de passe";
+$valid="Modifier";
 $action1="$('form#form').submit();";
-$cancel=T_('Fermer');
+$cancel="Fermer";
 $action2="$( this ).dialog( \"close\" ); ";
 include "./modalbox.php"; 
 ?>

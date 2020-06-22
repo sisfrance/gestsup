@@ -1,23 +1,17 @@
 <?php
 ################################################################################
-# @Name : /plugins/availability/core.php
-# @Description : Statistics calculs
-# @call : /plugins/availability/index.php
+# @Name : /plugin/availability/core.php
+# @Desc : Statisitcs calculs
+# @call : /plugin/availability/index.php
 # @parameters : category
 # @Author : Flox
 # @Create : 05/05/2015
-# @Update : 03/05/2017
-# @Version : 3.1.20
+# @Update : 03/06/2015
+# @Version : 3.0.11
 ################################################################################
-
-//initialize variables 
 if(!isset($m1 )) $m1 ='';
 if(!isset($m2 )) $m2 ='';
 if(!isset($m3 )) $m3 ='';
-if(!isset($i )) $i ='';
-if(!isset($hourdependancy_planned )) $hourdependancy_planned ='';
-if(!isset($mindependancy_planned )) $mindependancy_planned ='';
-
 //get month selection from quarter section
 if ($m1!="") {
     $months="
@@ -52,13 +46,13 @@ $querydata= "
     tavailability.subcat=$rowsubcat[subcat]
     GROUP BY tincidents.subcat
 ";
-$querydata = $db->query("$querydata");
-$rowdata=$querydata->fetch();
+$querydata = mysql_query("$querydata");
+$rowdata=mysql_fetch_array($querydata);
 
-//calculate none planned dependancy if exist
+//calc none planned dependancy if exist
 if ($rparameters['availability_dep']==1)
 {
-   //calculate dependancy time
+   //calc dependancy time
    $querydependancy= "
 	SELECT tincidents.id, tincidents.category, tincidents.subcat, tincidents.start_availability, tincidents.end_availability,
 	SUM(hour(TIMEDIFF(end_availability, start_availability))) AS hourdiff,
@@ -73,8 +67,8 @@ if ($rparameters['availability_dep']==1)
 	tincidents.start_availability LIKE '$year%' $months
 	GROUP BY tincidents.subcat";
 
-	$querydependancy = $db->query("$querydependancy");
-    while ($rowdependancy=$querydependancy->fetch()) 
+	$querydependancy = mysql_query("$querydependancy");
+    while ($rowdependancy=mysql_fetch_array($querydependancy)) 
     { 
          $dependancy_time=($rowdependancy['hourdiff']*60)+($rowdependancy['minutediff'])+$dependancy_time;
          $hourdependancy=$rowdependancy['hourdiff']+$hourdependancy;
@@ -83,7 +77,7 @@ if ($rparameters['availability_dep']==1)
 
 } else $dependancy_time=0;
 
-//calculate availability percentage of planned ticket
+//calc availabilty percentage of planned ticket
 $query_planned= "
 	SELECT tincidents.id, tincidents.category, tincidents.subcat, tincidents.start_availability, tincidents.end_availability,
 	SUM(hour(TIMEDIFF(end_availability, start_availability))) AS hourdiff,
@@ -99,18 +93,18 @@ $query_planned= "
 	GROUP BY tincidents.subcat
 ";
 
-$query_planned = $db->query($query_planned);
-$row_planned = $query_planned->fetch();
+$query_planned = mysql_query($query_planned);
+$row_planned = mysql_fetch_array($query_planned);
 
 
-//calculate dependancy of planned tickets
+//calc dependancy of planned tickets
 if ($rparameters['availability_dep']==1)
 {
    	//var init
     $hourdependancy_planned=0;
     $mindependancy_planned=0;
     $dependancy_time_planned=0;
-    //calculate dependancy time without planned ticket
+    //calc dependancy time whitout planned ticket
     $querydependancy_planned= "
 	SELECT tincidents.id, tincidents.category, tincidents.subcat, tincidents.start_availability, tincidents.end_availability,
 	SUM(hour(TIMEDIFF(end_availability, start_availability))) AS hourdiff,
@@ -125,8 +119,8 @@ if ($rparameters['availability_dep']==1)
 	tincidents.start_availability LIKE '$year%' $months
 	GROUP BY tincidents.subcat";
 	
-	$querydependancy_planned = $db->query("$querydependancy_planned");
-    while ($rowdependancy_planned=$querydependancy_planned->fetch()) 
+	$querydependancy_planned = mysql_query("$querydependancy_planned");
+    while ($rowdependancy_planned=mysql_fetch_array($querydependancy_planned)) 
     { 
          $dependancy_time_planned=($rowdependancy_planned['hourdiff']*60)+($rowdependancy_planned['minutediff'])+$dependancy_time_planned;
          $hourdependancy_planned=$rowdependancy_planned['hourdiff']+$hourdependancy_planned;
@@ -134,15 +128,12 @@ if ($rparameters['availability_dep']==1)
     }
 } else $dependancy_time_planned=0;
 
-//unavailability time for ticket without planned
+//unavailability time for ticket whithout planned
 if($row_planned['hourdiff']||$row_planned['minutediff'])
 {
-	if ($row_planned['minutediff']!=0)  //avoid problem division by 0.
-	{
-		$min_planned=explode(".", ($row_planned['minutediff'])/60);
-	} else {$min_planned= array("0" => "0", "1"=>"0");}
+	$min_planned=explode(".", ($row_planned['minutediff'])/60);
 	$hour_planned=($row_planned['hourdiff'])+$min_planned[0];
-	if (!empty($min_planned[1])){$min_planned=(60*"0.$min_planned[1]");} else {$min_planned=(60*"0.00");}
+	$min_planned=(60*"0.$min_planned[1]");
 	$min_planned=round($min_planned);
 }
 
@@ -162,38 +153,36 @@ if($rowdata['hourdiff']||$rowdata['minutediff'])
 } else {$min=0; $hour=0;}
 
 //get target tx for selected subcat
-$tx_target= $db->query("SELECT target FROM `tavailability_target` WHERE subcat='$rowsubcat[subcat]' AND year='$year'"); 
-$tx_target= $tx_target->fetch();
+$tx_target= mysql_query("SELECT target FROM `tavailability_target` WHERE subcat='$rowsubcat[subcat]' AND year='$year'"); 
+$tx_target= mysql_fetch_array($tx_target);
 $tx_target=$tx_target[0];
-/*
-echo "
+
+/*echo "
  	DATA:<br />
- 		- dependence planifié :  hour $hourdependancy_planned min $mindependancy_planned <br />
- 		- dependence non planifié :  hour $hourdependancy min $mindependancy <br />
+ 		- dependance planifié :  hour $hourdependancy_planned min $mindependancy_planned <br />
+ 		- dependance non planifié :  hour $hourdependancy min $mindependancy <br />
  		- planifié:  hour $hour_planned min $min_planned <br />
  		- non planifié : hour $hour min $min <br />
-";
-*/
- //init values for empty case
-if($hourdependancy_planned=='') {$hourdependancy_planned=0;}
-if($mindependancy_planned=='') {$mindependancy_planned=0;}
+";*/
+ 
+
 
 //convert hour in minutes for non planned ticket
 $hourcnv=$hour*60;
 //convert hour in minutes for planned ticket
 $hour_plannedcnv=$hour_planned*60;
-//convert hour in minutes of dependence planned ticket
+//convert hour in minutes of dependance planned ticket
 $hourdependancy_plannedcnv=$hourdependancy_planned*60;
-//convert hour in minutes of dependence none planned ticket
+//convert hour in minutes of dependance none planned ticket
 $hourdependancycnv=$hourdependancy*60;
 //convert hour in minutes for planned ticket
 $hourplannedcnv=$hour_planned*60;
 
-//calculate total min of planned tickets
+//calc total min of planned tickets
 $total_min_planned=$min_planned+$hour_plannedcnv+$hourdependancy_plannedcnv+$mindependancy_planned; 
-//echo "CALC TOTAL MIN PLANNED: $min_planned+$hour_plannedcnv+$hourdependancy_plannedcnv+$mindependancy_planned <br>";
+// echo "CALC TOTAL MIN PLANNED: $min_planned+$hour_plannedcnv+$hourdependancy_plannedcnv+$mindependancy_planned <br>";
 
-//calculate total min of none planned tickets
+//calc total min of none planned tickets
 $total_min_none_planned=$min+$hourcnv+$hourdependancycnv+$mindependancy; 
 // DEBUG echo "CALC TOTAL MIN NON PLANNED: min $min+ hourcnv $hourcnv+ hourdependancycnv $hourdependancycnv+ mindependancy $mindependancy<br>";
 
@@ -201,21 +190,21 @@ $total_min_none_planned=$min+$hourcnv+$hourdependancycnv+$mindependancy;
 if ($i) {$nb_day=$trim_hours;} else {$nb_day=365;}
 
 
-//calculate tx for ticket without planned ticket
+//calc tx for ticket whithout planned ticket
 $tx_planned=100-(100*($total_min_none_planned/($nb_day*24*60)));
 // DEBUG echo "CALC TX WITHOUT PLANNED : 100-(100*($total_min_none_planned/(365*24*60)))<br>";
 $tx_planned=number_format($tx_planned,2);
 
-//calculate global availability percentage
+//calc global availabilty percentage
 // DEBUG echo "CALC TX GLOBAL : 100-(100*($total_min_none_planned+$total_min_planned)/(365*24*60)))<br>";
 $tx=100-(100*(($total_min_none_planned+$total_min_planned)/($nb_day*24*60)));
 $tx=number_format($tx,2);
 
-//calculate non planned availability percentage for median calc
+//calc non planned availabilty percentage for median calc
 $tx_none_planned=100-(100*(($total_min_none_planned)/($nb_day*24*60)));
 $tx_none_planned=number_format($tx_none_planned,2);
 
-//calculate availability percent for send to graphic
+//calc unavailabity percent for send to graphic
 $tx2=100-$tx;
 $tx2=number_format($tx2,2);
 
@@ -244,9 +233,9 @@ if ($total_min_none_planned!=0)
 	$total_hour_none_planned=0;
 }
 
-//calculate global  
+//calc global  
 $global_min=$total_min_none_planned+$total_min_planned;
-if($global_min>=60) {$global_min=$global_min-60; $add_hour=1;} else {$add_hour=0;}//case min > 60
+if($global_min>60) {$global_min=$global_min-60; $add_hour=1;} else {$add_hour=0;}//case min > 60
 $global_hour=$total_hour_none_planned+$total_hour_planned+$add_hour;
 
 ?>
