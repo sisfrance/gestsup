@@ -171,7 +171,7 @@ if($_GET['state']=='meta')
 			if($rparameters['ticket_places']==1){
 				$from.= ", tplaces ";
 			}
-            /////// TEST /////////
+            /////// Changement d'affichage en fonction du role et de son groupe d'utilisateur
 
                     if($_SESSION['profile_id']==4 || $_SESSION['profile_id']==0){
 
@@ -188,7 +188,7 @@ if($_GET['state']=='meta')
                         AND tgroups_assoc.user=tusers.id  
                         AND tincidents.user=tgroups_assoc.user  ";
                     }
-                    /////////////////////
+                    /////////////
 
 
 			if($rparameters['ticket_places']==1){
